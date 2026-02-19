@@ -91,7 +91,7 @@ public class VastuController {
     @FXML
     private Slider angleSlider;
     @FXML
-    private Label devtasZoomLabel;
+    private TextField devtasZoomInput;
     @FXML
     private Slider devtasZoomSlider;
     // Variables to store initial position
@@ -193,6 +193,7 @@ public class VastuController {
         opacityCanvasSlider.setDisable(value);
         opacitySlider.setDisable(value);
 
+        devtasZoomInput.setDisable(value);
         devtasZoomSlider.setDisable(value);
         zoomOutButton.setDisable(value);
         zoomSlider.setDisable(value);
@@ -300,9 +301,84 @@ public class VastuController {
         zoomInButton.setOnAction(event -> zoomSlider.increment());
         zoomOutButton.setOnAction(event -> zoomSlider.decrement());
 
-        devtasZoomLabel.textProperty().bind(devtasZoomSlider.valueProperty().asString("%.0f%%"));
+        // Initialize overlay zoom text field with formatter
+        devtasZoomInput.setTextFormatter(createZoomTextFormatter());
+        
+        // Bidirectional binding between text field and slider
+        devtasZoomSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            devtasZoomInput.setText(String.format("%.0f", newValue.doubleValue()));
+        });
+        
+        // Set up PauseTransition for delayed validation on text input
+        PauseTransition devtasZoomDelay = new PauseTransition(Duration.millis(500));
+        devtasZoomDelay.setOnFinished(event -> {
+            // Only validate if not empty, allow user to clear and type new value
+            if (!devtasZoomInput.getText().isEmpty()) {
+                handleDevtasZoomInputChange(devtasZoomInput.getText());
+            }
+        });
+        
+        devtasZoomInput.textProperty().addListener((observable, oldValue, newValue) -> {
+            devtasZoomDelay.stop();
+            // Only start delay if not empty
+            if (!newValue.isEmpty()) {
+                devtasZoomDelay.playFromStart();
+            }
+        });
+        
+        devtasZoomInput.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                devtasZoomDelay.stop();
+                handleDevtasZoomInputChange(devtasZoomInput.getText());
+            }
+        });
+        
+        // Restore to current slider value if field is empty on focus loss
+        devtasZoomInput.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue && devtasZoomInput.getText().isEmpty()) {
+                devtasZoomInput.setText(String.format("%.0f", devtasZoomSlider.getValue()));
+            }
+        });
+        
         devtasZoomSlider.valueProperty().addListener(createZoomListener(overlayImageView1));
         imageContainer.addEventFilter(ScrollEvent.SCROLL, createScrollZoomListener(zoomSlider));
+    }
+    
+    private TextFormatter<String> createZoomTextFormatter() {
+        UnaryOperator<TextFormatter.Change> filter = change -> {
+            String newText = change.getControlNewText();
+            // Allow only integer values
+            return newText.matches("([0-9]*)?") ? change : null;
+        };
+        return new TextFormatter<>(filter);
+    }
+    
+    private void handleDevtasZoomInputChange(String newValue) {
+        // Don't auto-fill when empty - allow user to clear and type new value
+        if (newValue.isEmpty()) {
+            return;
+        }
+        
+        try {
+            int zoom = Integer.parseInt(newValue);
+            if (zoom >= 10 && zoom <= 300) {
+                devtasZoomSlider.setValue(zoom);
+            } else {
+                showTooltip(devtasZoomInput, "Please enter a value between 10 and 300");
+                // Clamp value to valid range
+                if (zoom < 10) {
+                    devtasZoomInput.setText("10");
+                    devtasZoomSlider.setValue(10);
+                } else {
+                    devtasZoomInput.setText("300");
+                    devtasZoomSlider.setValue(300);
+                }
+            }
+        } catch (NumberFormatException e) {
+            showTooltip(devtasZoomInput, "Invalid input. Please enter a numeric value.");
+            // Restore to current slider value on invalid input
+            devtasZoomInput.setText(String.format("%.0f", devtasZoomSlider.getValue()));
+        }
     }
 
     private void initializeResizeHandles() {
@@ -744,6 +820,7 @@ public class VastuController {
         selectedPointColourDropdown.setValue("BLUE");
         selectedPointBoxColourDropdown.setValue("RED");
         //devata zooms reset
+        devtasZoomInput.setText("100");
         devtasZoomSlider.adjustValue(100.00);
 
         //main plane zooms reset

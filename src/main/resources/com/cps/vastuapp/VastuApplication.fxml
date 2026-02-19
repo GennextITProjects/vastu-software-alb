@@ -89,7 +89,7 @@
     <bottom>
         <HBox alignment="CENTER" spacing="10" style="-fx-padding: 10; -fx-background-color: #E6E6FA;">
             <Label style="-fx-text-fill: #4CAF50; -fx-font-weight: bold;" text="Overlay Zoom: " />
-            <Label fx:id="devtasZoomLabel" style="-fx-text-fill: black;" text="100%" />
+            <TextField fx:id="devtasZoomInput" prefWidth="60" style="-fx-background-color: #FFFFFF;" text="100" />
             <Slider fx:id="devtasZoomSlider" max="300" min="10" style="-fx-control-inner-background: #E6E6FA;" value="100" />
             <Label style="-fx-text-fill: #FFC107; -fx-font-weight: bold;" text="Canvas Zoom: " />
             <Button fx:id="zoomOutButton" style="-fx-background-color: #F44336; -fx-text-fill: white;" text="-" />
