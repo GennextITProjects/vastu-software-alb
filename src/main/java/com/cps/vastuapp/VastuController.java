@@ -1284,17 +1284,17 @@ public class VastuController {
         circleData.put("ALL", FXCollections.observableArrayList( "MARMA_POINTS", "BAD_ZONES", "GOOD_ENTRIES"));
 
         Map<String, ObservableList<String>> squareData = new HashMap<>();
-        squareData.put("DOWN SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
-        squareData.put("LEFT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
-        squareData.put("UP SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
-        squareData.put("RIGHT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
+        squareData.put("DOWN SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
+        squareData.put("LEFT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
+        squareData.put("UP SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
+        squareData.put("RIGHT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
 
 
         Map<String, ObservableList<String>> rectangleData = new HashMap<>();
-        rectangleData.put("DOWN SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
-        rectangleData.put("LEFT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
-        rectangleData.put("UP SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
-        rectangleData.put("RIGHT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
+        rectangleData.put("DOWN SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
+        rectangleData.put("LEFT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
+        rectangleData.put("UP SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
+        rectangleData.put("RIGHT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "DEVTAS", "MARMA_POINTS", "ZONES"));
 
         Map<String, ObservableList<String>> triangleData = new HashMap<>();
         triangleData.put("ALL", FXCollections.observableArrayList("BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "ZONES"));

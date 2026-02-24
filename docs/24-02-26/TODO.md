@@ -7,7 +7,7 @@
     - Replace
         - replace with same name
 
-    - remove
+    [x] remove
         - Good entrie
         - bad zones
         - colors
