@@ -1281,7 +1281,7 @@ public class VastuController {
 
         // Example shapSelection
         Map<String, ObservableList<String>> circleData = new HashMap<>();
-        circleData.put("ALL", FXCollections.observableArrayList("5_ELEMENTS", "MARMA_POINTS", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES"));
+        circleData.put("ALL", FXCollections.observableArrayList( "MARMA_POINTS", "BAD_ZONES", "GOOD_ENTRIES"));
 
         Map<String, ObservableList<String>> squareData = new HashMap<>();
         squareData.put("DOWN SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
@@ -1297,7 +1297,7 @@ public class VastuController {
         rectangleData.put("RIGHT SIDE NORTH", FXCollections.observableArrayList("5_ELEMENTS", "9_ZONES", "BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "MARMA_POINTS", "ZONES"));
 
         Map<String, ObservableList<String>> triangleData = new HashMap<>();
-        triangleData.put("ALL", FXCollections.observableArrayList("BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "COLOURS", "ZONES"));
+        triangleData.put("ALL", FXCollections.observableArrayList("BAD_ZONES", "DEVTAS", "GOOD_ENTRIES", "ZONES"));
 
         shapSelection.put("Circle", circleData);
         shapSelection.put("Square", squareData);
