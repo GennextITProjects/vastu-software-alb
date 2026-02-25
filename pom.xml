@@ -62,6 +62,8 @@
 
     <build>
         <plugins>
+
+            <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -71,6 +73,8 @@
                     <target>17</target>
                 </configuration>
             </plugin>
+
+            <!-- JavaFX Run Plugin -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -90,6 +94,8 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Fat JAR Plugin - MUST run before jpackage -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -114,6 +120,37 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Windows EXE Installer Plugin - runs AFTER fat jar on verify phase -->
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.6.5</version>
+                <executions>
+                    <execution>
+                        <id>default-jpackage</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jpackage</goal>
+                        </goals>
+                        <configuration>
+                            <name>Master Vastu</name>
+                            <vendor>CPS Company</vendor>
+                            <appVersion>1.0</appVersion>
+                            <mainJar>VastuApplication-1.0-SNAPSHOT-jar-with-dependencies.jar</mainJar>
+                            <destination>${project.build.directory}/installer</destination>
+                            <type>EXE</type>
+                            <winConsole>false</winConsole>
+                            <winDirChooser>true</winDirChooser>
+                            <winMenu>true</winMenu>
+                            <winShortcut>true</winShortcut>
+                            <winPerUserInstall>true</winPerUserInstall>
+                            <icon>src/main/resources/icons/app_icon.ico</icon>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 </project>
