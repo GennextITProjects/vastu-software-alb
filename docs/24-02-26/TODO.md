@@ -28,5 +28,5 @@
 
 - Reset Bug
 
-- Circle to not be an eclipse
+[x] Circle to not be an eclipse - FIXED: Circular overlays now preserve aspect ratio and display as circles instead of ellipses
 
