@@ -1119,16 +1119,48 @@ public class VastuController {
 
             overlayImageView1.setImage(image);
             overlayImageView1.setVisible(true);
-            overlayImageView1.setPreserveRatio(false); // Do NOT maintain aspect ratio
-            overlayImageView1.setFitWidth(width);
-            overlayImageView1.setFitHeight(height);
 
-            // Align the ImageView's top-left corner with the StackPane's top-left corner
-            StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
+            // Check if this is a circular overlay (Circle shape with ALL direction)
+            String selectedCategory = primaryDropdown.getValue();
+            String selectedSubcategory = secondaryDropdown.getValue();
+            boolean isCircularOverlay = "Circle".equals(selectedCategory) && "ALL".equals(selectedSubcategory);
 
-            // Adjust its translation to fit within the bounding box
-            overlayImageView1.setTranslateX(minX);
-            overlayImageView1.setTranslateY(minY);
+            if (isCircularOverlay) {
+                // For circular overlays, preserve aspect ratio and fit within the bounding box
+                overlayImageView1.setPreserveRatio(true);
+                
+                // Calculate the maximum square that fits within the rectangular bounding box
+                double maxSquareSize = Math.min(width, height);
+                
+                // Set the image to fit within this square while preserving aspect ratio
+                overlayImageView1.setFitWidth(maxSquareSize);
+                overlayImageView1.setFitHeight(maxSquareSize);
+                
+                // Center the image within the bounding box
+                double centerX = minX + width / 2.0;
+                double centerY = minY + height / 2.0;
+                double imageCenterX = maxSquareSize / 2.0;
+                double imageCenterY = maxSquareSize / 2.0;
+                
+                // Align the ImageView's center with the bounding box center
+                StackPane.setAlignment(overlayImageView1, Pos.CENTER);
+                
+                // Adjust translation to center the image
+                overlayImageView1.setTranslateX(centerX - imageCenterX);
+                overlayImageView1.setTranslateY(centerY - imageCenterY);
+            } else {
+                // For non-circular overlays (rectangular shapes), use the original behavior
+                overlayImageView1.setPreserveRatio(false);
+                overlayImageView1.setFitWidth(width);
+                overlayImageView1.setFitHeight(height);
+
+                // Align the ImageView's top-left corner with the StackPane's top-left corner
+                StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
+
+                // Adjust its translation to fit within the bounding box
+                overlayImageView1.setTranslateX(minX);
+                overlayImageView1.setTranslateY(minY);
+            }
 
             // Draw the bounding box for reference
             changePointBoxColour();
