@@ -147,6 +147,9 @@ public class VastuController {
   // Map for circular overlay inner circle parameters
   private final Map<String, double[]> overlayInnerCircles = new HashMap<>();
 
+  // Map for triangular overlay parameters
+  private final Map<String, double[][]> overlayTriangles = new HashMap<>();
+
   @FXML
   private void initialize() {
     initializeGraphicsContexts();
@@ -160,6 +163,7 @@ public class VastuController {
     setupData();
     setupOverlayInnerRectangles();
     setupOverlayInnerCircles();
+    setupOverlayTriangles();
     disableUIComponents(true);
     disableColourSelectionDropdown(true);
     initializeResizeHandles();
@@ -1384,6 +1388,32 @@ public class VastuController {
       boolean isCircularOverlay =
           "Circle".equals(selectedCategory) && "ALL".equals(selectedSubcategory);
 
+      // Check if this is a triangular overlay
+      boolean isTriangularOverlay = "Triangle".equals(selectedCategory);
+      System.out.println(
+          "Category: " + selectedCategory + ", isTriangular: " + isTriangularOverlay);
+
+      if (isTriangularOverlay) {
+        String overlayName = getOverlayNameFromPath(overlayPathBuilder);
+        System.out.println("Triangle overlay name: " + overlayName);
+
+        double[][] triangle = overlayTriangles.get(overlayName);
+        System.out.println("Triangle found: " + (triangle != null ? "YES" : "NO"));
+
+        if (triangle != null) {
+          System.out.println("Triangle vertices: " + Arrays.deepToString(triangle));
+          System.out.println("User rect - width: " + width + ", height: " + height);
+          applyTriangleScaling(image, width, height, triangle);
+        } else {
+          System.out.println("Using FALLBACK for triangle");
+          overlayImageView1.setPreserveRatio(false);
+          overlayImageView1.setFitWidth(width);
+          overlayImageView1.setFitHeight(height);
+          overlayImageView1.setLayoutX(minX);
+          overlayImageView1.setLayoutY(minY);
+        }
+      }
+
       if (isCircularOverlay) {
         // For circular overlays, check if we have inner circle mapping
         String overlayName = getOverlayNameFromPath(overlayPathBuilder);
@@ -1717,6 +1747,99 @@ public class VastuController {
     overlayInnerCircles.put("MARMA_POINTS", new double[] {50.01, 49.80, 23.55});
     overlayInnerCircles.put("BAD_ZONES", new double[] {50.01, 49.80, 23.55});
     overlayInnerCircles.put("GOOD_ENTRIES", new double[] {50.01, 49.80, 23.55});
+  }
+
+  /**
+   * Setup overlay triangle mappings for precise scaling of triangular overlays. Format: array of 3
+   * vertices, each {x_percentage, y_percentage}
+   */
+  private void setupOverlayTriangles() {
+    System.out.println("=== Setting up Triangle Mappings ===");
+
+    // BAD_ZONES and GOOD_ENTRIES triangle
+    // Image: 12790 × 12143
+    // Vertices: Top (6393,2930), Bottom Left (3009,9599), Bottom Right (9778,9600)
+
+    double[][] triangle = {
+      {49.98, 24.13}, // Top vertex
+      {23.53, 79.05}, // Bottom Left
+      {76.46, 79.06} // Bottom Right
+    };
+
+    overlayTriangles.put("BAD_ZONES", triangle);
+    overlayTriangles.put("GOOD_ENTRIES", triangle);
+
+    System.out.println("Added BAD_ZONES triangle: " + Arrays.deepToString(triangle));
+    System.out.println("Added GOOD_ENTRIES triangle: " + Arrays.deepToString(triangle));
+    System.out.println("Total triangles in map: " + overlayTriangles.size());
+  }
+
+  /**
+   * Applies scaling for triangular overlays. Maps the triangle's bottom base to the user's
+   * rectangle bottom edge.
+   */
+  private void applyTriangleScaling(
+      Image image, double userRectWidth, double userRectHeight, double[][] triangle) {
+    System.out.println("=== Applying Triangle Scaling ===");
+
+    // Get triangle vertices
+    double[] top = triangle[0];
+    double[] bottomLeft = triangle[1];
+    double[] bottomRight = triangle[2];
+
+    // Calculate triangle dimensions in original image
+    double topY = (top[1] / 100.0) * image.getHeight();
+    double bottomLeftY = (bottomLeft[1] / 100.0) * image.getHeight();
+    double bottomRightY = (bottomRight[1] / 100.0) * image.getHeight();
+
+    double bottomLeftX = (bottomLeft[0] / 100.0) * image.getWidth();
+    double bottomRightX = (bottomRight[0] / 100.0) * image.getWidth();
+
+    // Triangle properties
+    double triangleHeight = bottomLeftY - topY;
+    double triangleBaseWidth = bottomRightX - bottomLeftX;
+
+    System.out.println(
+        "Triangle - Base width: " + triangleBaseWidth + ", Height: " + triangleHeight);
+    System.out.println("User rect - Width: " + userRectWidth + ", Height: " + userRectHeight);
+
+    // Calculate scale to fit the triangle in user's rectangle
+    double scale = userRectWidth / triangleBaseWidth;
+
+    System.out.println("Using scale: " + scale);
+
+    // Apply scaling to entire image
+    overlayImageView1.setPreserveRatio(false);
+    overlayImageView1.setFitWidth(image.getWidth() * scale);
+    overlayImageView1.setFitHeight(image.getHeight() * scale);
+
+    // Calculate where the triangle's bottom edge sits in the scaled image
+    double scaledBottomY = bottomLeftY * scale;
+
+    // Position the image so the triangle's BOTTOM edge aligns with user's rectangle BOTTOM
+    double overlayX = minX;
+    double overlayY = (minY + userRectHeight) - scaledBottomY;
+
+    // FIX: Add an adjustment to ensure the triangle is visible
+    // The triangle's top should be above the bottom edge
+    double scaledTopY = topY * scale;
+    double triangleVisibleHeight = scaledBottomY - scaledTopY;
+
+    // If triangle is taller than user rect, we need to adjust
+    if (triangleVisibleHeight > userRectHeight) {
+      // Center the triangle vertically
+      overlayY = minY - (scaledTopY - (userRectHeight - triangleVisibleHeight) / 2);
+    }
+
+    System.out.println("Position - overlayX: " + overlayX + ", overlayY: " + overlayY);
+    System.out.println("minX: " + minX + ", minY: " + minY);
+    System.out.println("Triangle visible height: " + triangleVisibleHeight);
+
+    StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
+    overlayImageView1.setLayoutX(overlayX);
+    overlayImageView1.setLayoutY(overlayY);
+
+    System.out.println("=== Triangle Scaling Complete ===");
   }
 
   private void setupData() {
