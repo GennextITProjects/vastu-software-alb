@@ -165,6 +165,15 @@ public class VastuController {
     initializeResizeHandles();
     removeResizeHandles();
     setupDragAndDrop();
+
+    // ADD THIS TEMPORARY DEBUG CODE
+    imageContainer.addEventFilter(
+        MouseEvent.MOUSE_PRESSED,
+        event -> {
+          System.out.println("Clicked on: " + event.getTarget().getClass().getSimpleName());
+          System.out.println("  Target: " + event.getTarget());
+          System.out.println("  Source: " + event.getSource());
+        });
   }
 
   private void disableUIComponents(boolean value) {
@@ -654,24 +663,35 @@ public class VastuController {
 
     imageContainer.setOnMousePressed(
         event -> {
-          initialX = event.getSceneX() - imageContainer.getLayoutX();
-          initialY = event.getSceneY() - imageContainer.getLayoutY();
-          imageContainer.setCursor(Cursor.MOVE); // Change cursor to indicate dragging
+          // ONLY drag container if clicking on canvas or container background
+          if (event.getTarget() == imageCanvas || event.getTarget() == imageContainer) {
+            initialX = event.getSceneX() - imageContainer.getLayoutX();
+            initialY = event.getSceneY() - imageContainer.getLayoutY();
+            imageContainer.setCursor(Cursor.MOVE);
+            System.out.println("CONTAINER PRESSED");
+            event.consume();
+          }
         });
 
     imageContainer.setOnMouseDragged(
         event -> {
-          double newX = event.getSceneX() - initialX;
-          double newY = event.getSceneY() - initialY;
-
-          // Update position
-          imageContainer.setLayoutX(newX);
-          imageContainer.setLayoutY(newY);
+          if (imageContainer.getCursor() == Cursor.MOVE) {
+            double newX = event.getSceneX() - initialX;
+            double newY = event.getSceneY() - initialY;
+            imageContainer.setLayoutX(newX);
+            imageContainer.setLayoutY(newY);
+            System.out.println("CONTAINER DRAGGED");
+            event.consume();
+          }
         });
 
     imageContainer.setOnMouseReleased(
         event -> {
-          imageContainer.setCursor(Cursor.DEFAULT); // Reset cursor
+          if (imageContainer.getCursor() == Cursor.MOVE) {
+            imageContainer.setCursor(Cursor.DEFAULT);
+            System.out.println("CONTAINER RELEASED");
+            event.consume();
+          }
         });
   }
 
@@ -996,8 +1016,8 @@ public class VastuController {
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
 
     // Adjust its translation to align the inner rectangle with the user's selection
-    overlayImageView1.setTranslateX(overlayX);
-    overlayImageView1.setTranslateY(overlayY);
+    overlayImageView1.setLayoutX(overlayX);
+    overlayImageView1.setLayoutY(overlayY);
 
     System.out.println("Scale: " + scale);
     System.out.println("Inner rect size: " + innerRectWidth + " x " + innerRectHeight);
@@ -1045,9 +1065,8 @@ public class VastuController {
     double overlayY = userCenterY - innerCenterY_scaled;
 
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
-    overlayImageView1.setTranslateX(overlayX);
-    overlayImageView1.setTranslateY(overlayY);
-
+    overlayImageView1.setLayoutX(overlayX);
+    overlayImageView1.setLayoutY(overlayY);
     System.out.println("Circle Scale: " + scale);
     System.out.println("Inner radius: " + innerRadius);
     System.out.println("User rect min dim: " + userRectMinDim);
@@ -1199,36 +1218,56 @@ public class VastuController {
   }
 
   private void makeImageViewInteractive(ImageView imageView) {
-    // Enable dragging
+    // CRITICAL: Ensure overlay captures all mouse events
+    imageView.setPickOnBounds(true);
+
+    // Simple drag implementation
+    final double[] dragDelta = new double[2];
+
     imageView.setOnMousePressed(
         event -> {
-          imageView.setUserData(
-              new double[] {
-                event.getSceneX(),
-                event.getSceneY(),
-                imageView.getTranslateX(),
-                imageView.getTranslateY()
-              });
-          event.consume(); // Prevent propagation to the parent
+          if (event.getButton() == MouseButton.PRIMARY) {
+            dragDelta[0] = event.getX();
+            dragDelta[1] = event.getY();
+            imageView.setCursor(Cursor.MOVE);
+            System.out.println("OVERLAY PRESSED at: " + event.getX() + ", " + event.getY());
+            event.consume();
+          }
         });
 
     imageView.setOnMouseDragged(
         event -> {
-          double[] initial = (double[]) imageView.getUserData();
-          double deltaX = event.getSceneX() - initial[0];
-          double deltaY = event.getSceneY() - initial[1];
-          imageView.setTranslateX(initial[2] + deltaX);
-          imageView.setTranslateY(initial[3] + deltaY);
-          updateResizeHandles(); // Update handles after dragging
-          event.consume(); // Prevent propagation to the parent
+          if (event.getButton() == MouseButton.PRIMARY) {
+            double newX = imageView.getLayoutX() + (event.getX() - dragDelta[0]);
+            double newY = imageView.getLayoutY() + (event.getY() - dragDelta[1]);
+
+            imageView.setLayoutX(newX);
+            imageView.setLayoutY(newY);
+
+            System.out.println("OVERLAY DRAGGED to: " + newX + ", " + newY);
+            updateResizeHandles();
+            event.consume();
+          }
         });
 
-    // Enable zooming and scaling
-    imageView.setOnScroll(
+    imageView.setOnMouseReleased(
         event -> {
-          handleZoom(event, imageView);
-          updateResizeHandles(); // Update handles after zooming
-          event.consume(); // Prevent propagation to the parent
+          if (event.getButton() == MouseButton.PRIMARY) {
+            imageView.setCursor(Cursor.HAND);
+            System.out.println("OVERLAY RELEASED");
+            event.consume();
+          }
+        });
+
+    // Hover effects
+    imageView.setOnMouseEntered(
+        event -> {
+          imageView.setCursor(Cursor.HAND);
+        });
+
+    imageView.setOnMouseExited(
+        event -> {
+          imageView.setCursor(Cursor.DEFAULT);
         });
   }
 
@@ -1267,40 +1306,35 @@ public class VastuController {
         };
 
     // Handle success (on the JavaFX application thread)
+    // Handle success (on the JavaFX application thread)
     loadOverlayTask.setOnSucceeded(
         event -> {
           Image overlayPathBuilderImage = loadOverlayTask.getValue();
           resetOverlays();
 
-          //            if (isLastOption && ! overlayPathBuilder.contains("Circle")  ) {  //TODO
-          // Needed to enable after confora
           if (isLastOption) {
             disableColourSelectionDropdown(false);
             drawImageInBoundingBoxUsingImageView(overlayPathBuilderImage);
           } else {
             overlayImageView1.setImage(overlayPathBuilderImage);
-            // Center the image
-            overlayImageView1.setFitWidth(
-                overlayImageView1.getFitWidth()); // Resize width (optional)
-            overlayImageView1.setFitHeight(
-                overlayImageView1.getFitHeight()); // Resize height (optional)
-            overlayImageView1
-                .layoutXProperty()
-                .bind(
-                    imageCanvas
-                        .widthProperty()
-                        .subtract(overlayImageView1.fitWidthProperty())
-                        .divide(2));
-            overlayImageView1
-                .layoutYProperty()
-                .bind(
-                    imageCanvas
-                        .heightProperty()
-                        .subtract(overlayImageView1.fitHeightProperty())
-                        .divide(2));
 
-            //                // Add the ImageView to the pane
-            //                imageCanvas.getId().add(overlayImageView1);
+            // Set initial size
+            overlayImageView1.setFitWidth(overlayImageView1.getFitWidth());
+            overlayImageView1.setFitHeight(overlayImageView1.getFitHeight());
+
+            // IMPORTANT: Remove any existing bindings first
+            overlayImageView1.layoutXProperty().unbind();
+            overlayImageView1.layoutYProperty().unbind();
+
+            // Set initial position manually (not with binding)
+            double centerX = (imageCanvas.getWidth() - overlayImageView1.getFitWidth()) / 2;
+            double centerY = (imageCanvas.getHeight() - overlayImageView1.getFitHeight()) / 2;
+            overlayImageView1.setLayoutX(centerX);
+            overlayImageView1.setLayoutY(centerY);
+
+            // Ensure overlay is on top
+            overlayImageView1.toFront();
+
             overlayImageView1.setVisible(true);
             makeImageViewInteractive(overlayImageView1);
           }
@@ -1329,6 +1363,10 @@ public class VastuController {
   }
 
   private void drawImageInBoundingBoxUsingImageView(Image image) {
+    // Remove any existing bindings first
+    overlayImageView1.layoutXProperty().unbind();
+    overlayImageView1.layoutYProperty().unbind();
+
     if (minX != Double.MAX_VALUE
         && maxX != Double.MIN_VALUE
         && minY != Double.MAX_VALUE
@@ -1337,6 +1375,7 @@ public class VastuController {
       double height = maxY - minY;
 
       overlayImageView1.setImage(image);
+      overlayImageView1.toFront();
       overlayImageView1.setVisible(true);
 
       // Check if this is a circular overlay (Circle shape with ALL direction)
@@ -1366,8 +1405,8 @@ public class VastuController {
           double imageCenterY = maxSquareSize / 2.0;
 
           StackPane.setAlignment(overlayImageView1, Pos.CENTER);
-          overlayImageView1.setTranslateX(centerX - imageCenterX);
-          overlayImageView1.setTranslateY(centerY - imageCenterY);
+          overlayImageView1.setLayoutX(centerX - imageCenterX);
+          overlayImageView1.setLayoutY(centerY - imageCenterY);
         }
       } else {
         // For non-circular overlays, check if we have inner rectangle mapping
@@ -1376,22 +1415,20 @@ public class VastuController {
 
         if (innerRect != null) {
           // Use enhanced scaling logic with inner rectangle mapping
-          // Pass width and height as parameters
           applyInnerRectangleScaling(image, width, height, innerRect);
         } else {
-          // Fallback to original behavior if no inner rectangle mapping found
+          // Fallback to original behavior
           overlayImageView1.setPreserveRatio(false);
           overlayImageView1.setFitWidth(width);
           overlayImageView1.setFitHeight(height);
-
-          // Align the ImageView's top-left corner with the StackPane's top-left corner
           StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
-
-          // Adjust its translation to fit within the bounding box
-          overlayImageView1.setTranslateX(minX);
-          overlayImageView1.setTranslateY(minY);
+          overlayImageView1.setLayoutX(minX);
+          overlayImageView1.setLayoutY(minY);
         }
       }
+
+      // ADD THIS LINE - Make the overlay draggable
+      makeImageViewInteractive(overlayImageView1);
 
       // Draw the bounding box for reference
       changePointBoxColour();
@@ -1428,6 +1465,10 @@ public class VastuController {
 
   // Reset overlays
   private void resetOverlays() {
+    // Remove any existing bindings first - ADD THESE LINES
+    overlayImageView1.layoutXProperty().unbind();
+    overlayImageView1.layoutYProperty().unbind();
+
     overlayImageView1.setImage(null);
     overlayImageView1.setVisible(false);
     StackPane.clearConstraints(overlayImageView1);
@@ -1435,6 +1476,8 @@ public class VastuController {
     overlayImageView1.setTranslateY(0);
     overlayImageView1.setScaleX(1);
     overlayImageView1.setScaleY(1);
+    overlayImageView1.setLayoutX(0); // Also reset layout
+    overlayImageView1.setLayoutY(0); // Also reset layout
     removeResizeHandles();
   }
 
@@ -1461,11 +1504,14 @@ public class VastuController {
    * @param imageView The ImageView to apply zoom to.
    */
   private void handleZoom(ScrollEvent event, ImageView imageView) {
-    double delta = event.getDeltaY();
-    double newScaleX = imageView.getScaleX() + delta / 1000;
-    double newScaleY = imageView.getScaleY() + delta / 1000;
-    imageView.setScaleX(newScaleX);
-    imageView.setScaleY(newScaleY);
+    double delta = event.getDeltaY() / 1000.0;
+    double newScale = imageView.getScaleX() + delta;
+
+    // Limit zoom scale (optional)
+    newScale = Math.max(0.1, Math.min(5.0, newScale));
+
+    imageView.setScaleX(newScale);
+    imageView.setScaleY(newScale);
   }
 
   private void markCenter() {
@@ -1609,6 +1655,9 @@ public class VastuController {
   public void clearPoints() {
     // Clear the points list
     points.clear();
+    // Remove bindings
+    overlayImageView1.layoutXProperty().unbind();
+    overlayImageView1.layoutYProperty().unbind();
     disableColourSelectionDropdown(true);
     // Redraw the canvas without any points
     resetOverlays();
