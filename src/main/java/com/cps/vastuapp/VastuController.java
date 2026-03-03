@@ -220,7 +220,7 @@ public class VastuController {
     }
 
     private void initializeInputs() {
-        angleInput.setPromptText("Enter angle (0-360)");
+        angleInput.setPromptText("Enter angle (-45 to +45)");
         angleInput.setPrefWidth(150);
         overlayImageView1.getTransforms().addAll(imageRotate, imageScale);
 
@@ -250,8 +250,8 @@ public class VastuController {
     private TextFormatter<String> createAngleTextFormatter() {
         UnaryOperator<TextFormatter.Change> filter = change -> {
             String newText = change.getControlNewText();
-            // Allow input of decimal or integer, with max 2 decimal places
-            return newText.matches("([0-9]*\\.?[0-9]{0,2})?") ? change : null;
+            // Allow input of negative or positive decimal/integer, with max 2 decimal places
+            return newText.matches("-?[0-9]*\\.?[0-9]{0,2}?") ? change : null;
         };
         return new TextFormatter<>(filter);
     }
@@ -264,11 +264,11 @@ public class VastuController {
 
         try {
             double angle = Double.parseDouble(newValue);
-            if (angle >= 0 && angle <= 360) {
+            if (angle >= -45 && angle <= 45) {
                 angleSlider.setValue(angle);
                 applyRotation(overlayImageView1, angle);
             } else {
-                showTooltip(angleInput, "Please enter a value between 0 and 360");
+                showTooltip(angleInput, "Please enter a value between -45 and +45");
             }
         } catch (NumberFormatException e) {
             showTooltip(angleInput, "Invalid input. Please enter a numeric value.");
@@ -276,6 +276,11 @@ public class VastuController {
     }
 
     private void initializeSliders() {
+        // Configure angle slider for -45 to +45 degree range
+        angleSlider.setMin(-45.0);
+        angleSlider.setMax(45.0);
+        angleSlider.setValue(0.0);
+        
         angleSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             angleInput.setText(String.format("%.1f", newValue.doubleValue()));
             applyRotation(overlayImageView1, newValue.doubleValue());
