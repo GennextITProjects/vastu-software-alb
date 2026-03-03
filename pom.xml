@@ -63,7 +63,6 @@
         <plugins>
 
             <!-- Compiler Plugin -->
-            <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -74,29 +73,8 @@
                     <release>17</release>
                 </configuration>
             </plugin>
-            <!-- Copy fat JAR to clean input folder for jpackage -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-jar-for-jpackage</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <mkdir dir="${project.build.directory}/pkg-input"/>
-                                <copy file="${project.build.directory}/${project.build.finalName}-jar-with-dependencies.jar" todir="${project.build.directory}/pkg-input"/>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
 
-            <!-- JavaFX Run Plugin (only for mvn javafx:run, no jlink) -->
+            <!-- JavaFX Run Plugin (only for mvn javafx:run) -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -111,8 +89,7 @@
                 </executions>
             </plugin>
 
-            <!-- Fat JAR Plugin - bundles everything into one JAR -->
-            <!-- Replace maven-shade-plugin with this -->
+            <!-- Fat JAR Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -138,7 +115,46 @@
                 </executions>
             </plugin>
 
-            <!-- Windows EXE Installer - runs AFTER fat jar on verify phase -->
+            <!-- Antrun: copy JAR to pkg-input, then copy JavaFX DLLs after jpackage -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <!-- Runs at package phase: copies fat JAR to clean folder -->
+                    <execution>
+                        <id>copy-jar-for-jpackage</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.directory}/pkg-input"/>
+                                <copy file="${project.build.directory}/${project.build.finalName}-jar-with-dependencies.jar"
+                                      todir="${project.build.directory}/pkg-input"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                    <!-- Runs at verify phase: copies JavaFX DLLs into app-image after jpackage -->
+                    <execution>
+                        <id>copy-javafx-dlls</id>
+                        <phase>insall</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <copy todir="${project.build.directory}/installer/MasterVastu/runtime/bin" overwrite="true">
+                                    <fileset dir="D:\Programs\javafx-sdk-17.0.18\bin" includes="*.dll"/>
+                                </copy>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- jpackage: creates app-image using Liberica jpackage via PATH -->
             <plugin>
                 <groupId>org.panteleyev</groupId>
                 <artifactId>jpackage-maven-plugin</artifactId>
@@ -159,25 +175,7 @@
                             <mainClass>com.cps.vastuapp.VastuApplication</mainClass>
                             <destination>${project.build.directory}/installer</destination>
                             <type>APP_IMAGE</type>
-                            <jpackagePath>D:\Programs\LibericaJDK-17-Full\bin</jpackagePath>
                             <icon>src/main/resources/icons/app_icon.ico</icon>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>copy-javafx-dlls</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <copy todir="${project.build.directory}/installer/MasterVastu/runtime/bin" overwrite="true">
-                                    <fileset dir="D:\Programs\javafx-sdk-17.0.18\bin" includes="*.dll"/>
-                                </copy>
-                                <copy todir="${project.build.directory}/installer/MasterVastu/app" overwrite="true">
-                                    <fileset dir="D:\Programs\javafx-sdk-17.0.18\lib" includes="*.jar"/>
-                                </copy>
-                            </target>
                         </configuration>
                     </execution>
                 </executions>
