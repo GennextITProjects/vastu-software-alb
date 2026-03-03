@@ -144,6 +144,9 @@ public class VastuController {
   // Overlay inner rectangle mappings for precise scaling
   private final Map<String, double[]> overlayInnerRectangles = new HashMap<>();
 
+  // Map for circular overlay inner circle parameters
+  private final Map<String, double[]> overlayInnerCircles = new HashMap<>();
+
   @FXML
   private void initialize() {
     initializeGraphicsContexts();
@@ -155,7 +158,8 @@ public class VastuController {
     initializeDropdowns();
     addDragFunctionality();
     setupData();
-    setupOverlayInnerRectangles(); // <-- ADD THIS LINE
+    setupOverlayInnerRectangles();
+    setupOverlayInnerCircles();
     disableUIComponents(true);
     disableColourSelectionDropdown(true);
     initializeResizeHandles();
@@ -1000,6 +1004,55 @@ public class VastuController {
     System.out.println("User rect size: " + userRectWidth + " x " + userRectHeight);
   }
 
+  /**
+   * Applies enhanced scaling logic for circular overlays. Maps the inner circle to the user's
+   * selected rectangle.
+   *
+   * @param image The overlay image to scale
+   * @param userRectWidth Width of the user's selected rectangle
+   * @param userRectHeight Height of the user's selected rectangle
+   * @param innerCircle Array containing {centerX%, centerY%, radius%}
+   */
+  private void applyInnerCircleScaling(
+      Image image, double userRectWidth, double userRectHeight, double[] innerCircle) {
+    double centerXPercent = innerCircle[0];
+    double centerYPercent = innerCircle[1];
+    double radiusPercent = innerCircle[2];
+
+    // Calculate actual pixel values in original image
+    double innerRadius = (radiusPercent / 100.0) * Math.min(image.getWidth(), image.getHeight());
+    double innerCenterX = (centerXPercent / 100.0) * image.getWidth();
+    double innerCenterY = (centerYPercent / 100.0) * image.getHeight();
+
+    // Calculate scale needed to make inner circle fit in user's rectangle
+    // For a circle, we want it to fit within the smaller dimension of the user's rectangle
+    double userRectMinDim = Math.min(userRectWidth, userRectHeight);
+    double scale = userRectMinDim / (2 * innerRadius);
+
+    // Apply scaling - preserve ratio to keep circle circular!
+    overlayImageView1.setPreserveRatio(true);
+    overlayImageView1.setFitWidth(image.getWidth() * scale);
+    overlayImageView1.setFitHeight(image.getHeight() * scale);
+
+    // Position so inner circle center aligns with user's rectangle center
+    double userCenterX = minX + userRectWidth / 2.0;
+    double userCenterY = minY + userRectHeight / 2.0;
+
+    double innerCenterX_scaled = innerCenterX * scale;
+    double innerCenterY_scaled = innerCenterY * scale;
+
+    double overlayX = userCenterX - innerCenterX_scaled;
+    double overlayY = userCenterY - innerCenterY_scaled;
+
+    StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
+    overlayImageView1.setTranslateX(overlayX);
+    overlayImageView1.setTranslateY(overlayY);
+
+    System.out.println("Circle Scale: " + scale);
+    System.out.println("Inner radius: " + innerRadius);
+    System.out.println("User rect min dim: " + userRectMinDim);
+  }
+
   private void setResizeHandlesVisibility(boolean visible) {
     topLeftResizeHandle.setVisible(visible);
     topRightResizeHandle.setVisible(visible);
@@ -1293,28 +1346,29 @@ public class VastuController {
           "Circle".equals(selectedCategory) && "ALL".equals(selectedSubcategory);
 
       if (isCircularOverlay) {
-        // For circular overlays, preserve aspect ratio and fit within the bounding box
-        overlayImageView1.setPreserveRatio(true);
+        // For circular overlays, check if we have inner circle mapping
+        String overlayName = getOverlayNameFromPath(overlayPathBuilder);
+        double[] innerCircle = overlayInnerCircles.get(overlayName);
 
-        // Calculate the maximum square that fits within the rectangular bounding box
-        double maxSquareSize = Math.min(width, height);
+        if (innerCircle != null) {
+          // Use enhanced circle scaling logic
+          applyInnerCircleScaling(image, width, height, innerCircle);
+        } else {
+          // Fallback to original circular behavior
+          overlayImageView1.setPreserveRatio(true);
+          double maxSquareSize = Math.min(width, height);
+          overlayImageView1.setFitWidth(maxSquareSize);
+          overlayImageView1.setFitHeight(maxSquareSize);
 
-        // Set the image to fit within this square while preserving aspect ratio
-        overlayImageView1.setFitWidth(maxSquareSize);
-        overlayImageView1.setFitHeight(maxSquareSize);
+          double centerX = minX + width / 2.0;
+          double centerY = minY + height / 2.0;
+          double imageCenterX = maxSquareSize / 2.0;
+          double imageCenterY = maxSquareSize / 2.0;
 
-        // Center the image within the bounding box
-        double centerX = minX + width / 2.0;
-        double centerY = minY + height / 2.0;
-        double imageCenterX = maxSquareSize / 2.0;
-        double imageCenterY = maxSquareSize / 2.0;
-
-        // Align the ImageView's center with the bounding box center
-        StackPane.setAlignment(overlayImageView1, Pos.CENTER);
-
-        // Adjust translation to center the image
-        overlayImageView1.setTranslateX(centerX - imageCenterX);
-        overlayImageView1.setTranslateY(centerY - imageCenterY);
+          StackPane.setAlignment(overlayImageView1, Pos.CENTER);
+          overlayImageView1.setTranslateX(centerX - imageCenterX);
+          overlayImageView1.setTranslateY(centerY - imageCenterY);
+        }
       } else {
         // For non-circular overlays, check if we have inner rectangle mapping
         String overlayName = getOverlayNameFromPath(overlayPathBuilder);
@@ -1600,6 +1654,20 @@ public class VastuController {
 
     // ZONES
     overlayInnerRectangles.put("ZONES", new double[] {19.79, 20.13, 60.51, 60.16});
+  }
+
+  /**
+   * Setup overlay inner circle mappings for precise scaling of circular overlays. Format:
+   * {centerX_percentage, centerY_percentage, radius_percentage}
+   */
+  private void setupOverlayInnerCircles() {
+    // Image: 12718 × 12720
+    // Inner circle: Center (6360, 6335), Radius 2995 pixels
+    // Calculated: CenterX=50.01%, CenterY=49.80%, Radius=23.55%
+
+    overlayInnerCircles.put("MARMA_POINTS", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("BAD_ZONES", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("GOOD_ENTRIES", new double[] {50.01, 49.80, 23.55});
   }
 
   private void setupData() {
