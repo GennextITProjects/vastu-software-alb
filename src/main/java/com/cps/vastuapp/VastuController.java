@@ -1275,70 +1275,74 @@ public class VastuController {
     pointBoxCheckBox.setDisable(value);
   }
 
- private void drawImageInBoundingBoxUsingImageView(Image image) {
-    if (minX != Double.MAX_VALUE && maxX != Double.MIN_VALUE && minY != Double.MAX_VALUE && maxY != Double.MIN_VALUE) {
-        double width = maxX - minX;
-        double height = maxY - minY;
+  private void drawImageInBoundingBoxUsingImageView(Image image) {
+    if (minX != Double.MAX_VALUE
+        && maxX != Double.MIN_VALUE
+        && minY != Double.MAX_VALUE
+        && maxY != Double.MIN_VALUE) {
+      double width = maxX - minX;
+      double height = maxY - minY;
 
-        overlayImageView1.setImage(image);
-        overlayImageView1.setVisible(true);
+      overlayImageView1.setImage(image);
+      overlayImageView1.setVisible(true);
 
-        // Check if this is a circular overlay (Circle shape with ALL direction)
-        String selectedCategory = primaryDropdown.getValue();
-        String selectedSubcategory = secondaryDropdown.getValue();
-        boolean isCircularOverlay = "Circle".equals(selectedCategory) && "ALL".equals(selectedSubcategory);
+      // Check if this is a circular overlay (Circle shape with ALL direction)
+      String selectedCategory = primaryDropdown.getValue();
+      String selectedSubcategory = secondaryDropdown.getValue();
+      boolean isCircularOverlay =
+          "Circle".equals(selectedCategory) && "ALL".equals(selectedSubcategory);
 
-        if (isCircularOverlay) {
-            // For circular overlays, preserve aspect ratio and fit within the bounding box
-            overlayImageView1.setPreserveRatio(true);
-            
-            // Calculate the maximum square that fits within the rectangular bounding box
-            double maxSquareSize = Math.min(width, height);
-            
-            // Set the image to fit within this square while preserving aspect ratio
-            overlayImageView1.setFitWidth(maxSquareSize);
-            overlayImageView1.setFitHeight(maxSquareSize);
-            
-            // Center the image within the bounding box
-            double centerX = minX + width / 2.0;
-            double centerY = minY + height / 2.0;
-            double imageCenterX = maxSquareSize / 2.0;
-            double imageCenterY = maxSquareSize / 2.0;
-            
-            // Align the ImageView's center with the bounding box center
-            StackPane.setAlignment(overlayImageView1, Pos.CENTER);
-            
-            // Adjust translation to center the image
-            overlayImageView1.setTranslateX(centerX - imageCenterX);
-            overlayImageView1.setTranslateY(centerY - imageCenterY);
+      if (isCircularOverlay) {
+        // For circular overlays, preserve aspect ratio and fit within the bounding box
+        overlayImageView1.setPreserveRatio(true);
+
+        // Calculate the maximum square that fits within the rectangular bounding box
+        double maxSquareSize = Math.min(width, height);
+
+        // Set the image to fit within this square while preserving aspect ratio
+        overlayImageView1.setFitWidth(maxSquareSize);
+        overlayImageView1.setFitHeight(maxSquareSize);
+
+        // Center the image within the bounding box
+        double centerX = minX + width / 2.0;
+        double centerY = minY + height / 2.0;
+        double imageCenterX = maxSquareSize / 2.0;
+        double imageCenterY = maxSquareSize / 2.0;
+
+        // Align the ImageView's center with the bounding box center
+        StackPane.setAlignment(overlayImageView1, Pos.CENTER);
+
+        // Adjust translation to center the image
+        overlayImageView1.setTranslateX(centerX - imageCenterX);
+        overlayImageView1.setTranslateY(centerY - imageCenterY);
+      } else {
+        // For non-circular overlays, check if we have inner rectangle mapping
+        String overlayName = getOverlayNameFromPath(overlayPathBuilder);
+        double[] innerRect = overlayInnerRectangles.get(overlayName);
+
+        if (innerRect != null) {
+          // Use enhanced scaling logic with inner rectangle mapping
+          // Pass width and height as parameters
+          applyInnerRectangleScaling(image, width, height, innerRect);
         } else {
-            // For non-circular overlays, check if we have inner rectangle mapping
-            String overlayName = getOverlayNameFromPath(overlayPathBuilder);
-            double[] innerRect = overlayInnerRectangles.get(overlayName);
-            
-            if (innerRect != null) {
-                // Use enhanced scaling logic with inner rectangle mapping
-                // Pass width and height as parameters
-                applyInnerRectangleScaling(image, width, height, innerRect);
-            } else {
-                // Fallback to original behavior if no inner rectangle mapping found
-                overlayImageView1.setPreserveRatio(false);
-                overlayImageView1.setFitWidth(width);
-                overlayImageView1.setFitHeight(height);
+          // Fallback to original behavior if no inner rectangle mapping found
+          overlayImageView1.setPreserveRatio(false);
+          overlayImageView1.setFitWidth(width);
+          overlayImageView1.setFitHeight(height);
 
-                // Align the ImageView's top-left corner with the StackPane's top-left corner
-                StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
+          // Align the ImageView's top-left corner with the StackPane's top-left corner
+          StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
 
-                // Adjust its translation to fit within the bounding box
-                overlayImageView1.setTranslateX(minX);
-                overlayImageView1.setTranslateY(minY);
-            }
+          // Adjust its translation to fit within the bounding box
+          overlayImageView1.setTranslateX(minX);
+          overlayImageView1.setTranslateY(minY);
         }
+      }
 
-        // Draw the bounding box for reference
-        changePointBoxColour();
+      // Draw the bounding box for reference
+      changePointBoxColour();
     }
-}
+  }
 
   private void changePointBoxColour() {
     double width = maxX - minX;
@@ -1576,15 +1580,26 @@ public class VastuController {
    * top_percentage, width_percentage, height_percentage}
    */
   private void setupOverlayInnerRectangles() {
-    // GOOD_ENTRIES_BAD_ZONES overlay inner rectangle coordinates
-    // Image size: 9933 × 9974 pixels
-    // Inner rectangle: Top Left (1974, 2020), Top Right (7985, 2020),
-    //                  Bottom Left (1946, 8008), Bottom Right (7971, 8008)
-    // Calculated: Left=19.87%, Top=20.25%, Width=60.52%, Height=60.04%
+    // GOOD_ENTRIES_BAD_ZONES
     overlayInnerRectangles.put("GOOD_ENTRIES_BAD_ZONES", new double[] {19.87, 20.25, 60.52, 60.04});
 
-    // Add other overlays as needed
-    // overlayInnerRectangles.put("OTHER_OVERLAY_NAME", new double[]{left, top, width, height});
+    // 5_ELEMENTS
+    overlayInnerRectangles.put("5_ELEMENTS", new double[] {19.76, 20.08, 60.54, 60.21});
+
+    // 9_ZONES
+    overlayInnerRectangles.put("9_ZONES", new double[] {19.79, 20.05, 60.51, 60.24});
+
+    // DEVTAS (same as 5_ELEMENTS)
+    overlayInnerRectangles.put("DEVTAS", new double[] {19.76, 20.08, 60.54, 60.21});
+
+    // MANDUKA
+    overlayInnerRectangles.put("MANDUKA", new double[] {19.76, 19.68, 60.54, 60.29});
+
+    // MARMA_POINTS
+    overlayInnerRectangles.put("MARMA_POINTS", new double[] {19.81, 19.73, 60.42, 60.17});
+
+    // ZONES
+    overlayInnerRectangles.put("ZONES", new double[] {19.79, 20.13, 60.51, 60.16});
   }
 
   private void setupData() {
