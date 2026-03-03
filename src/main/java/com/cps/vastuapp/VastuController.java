@@ -1394,6 +1394,7 @@ public class VastuController {
           "Category: " + selectedCategory + ", isTriangular: " + isTriangularOverlay);
 
       if (isTriangularOverlay) {
+        // Triangle handling
         String overlayName = getOverlayNameFromPath(overlayPathBuilder);
         System.out.println("Triangle overlay name: " + overlayName);
 
@@ -1412,18 +1413,14 @@ public class VastuController {
           overlayImageView1.setLayoutX(minX);
           overlayImageView1.setLayoutY(minY);
         }
-      }
-
-      if (isCircularOverlay) {
-        // For circular overlays, check if we have inner circle mapping
+      } else if (isCircularOverlay) {
+        // Circle handling
         String overlayName = getOverlayNameFromPath(overlayPathBuilder);
         double[] innerCircle = overlayInnerCircles.get(overlayName);
 
         if (innerCircle != null) {
-          // Use enhanced circle scaling logic
           applyInnerCircleScaling(image, width, height, innerCircle);
         } else {
-          // Fallback to original circular behavior
           overlayImageView1.setPreserveRatio(true);
           double maxSquareSize = Math.min(width, height);
           overlayImageView1.setFitWidth(maxSquareSize);
@@ -1439,15 +1436,13 @@ public class VastuController {
           overlayImageView1.setLayoutY(centerY - imageCenterY);
         }
       } else {
-        // For non-circular overlays, check if we have inner rectangle mapping
+        // Rectangle handling
         String overlayName = getOverlayNameFromPath(overlayPathBuilder);
         double[] innerRect = overlayInnerRectangles.get(overlayName);
 
         if (innerRect != null) {
-          // Use enhanced scaling logic with inner rectangle mapping
           applyInnerRectangleScaling(image, width, height, innerRect);
         } else {
-          // Fallback to original behavior
           overlayImageView1.setPreserveRatio(false);
           overlayImageView1.setFitWidth(width);
           overlayImageView1.setFitHeight(height);
@@ -1759,18 +1754,31 @@ public class VastuController {
     // BAD_ZONES and GOOD_ENTRIES triangle
     // Image: 12790 × 12143
     // Vertices: Top (6393,2930), Bottom Left (3009,9599), Bottom Right (9778,9600)
-
-    double[][] triangle = {
+    double[][] badZonesTriangle = {
       {49.98, 24.13}, // Top vertex
       {23.53, 79.05}, // Bottom Left
       {76.46, 79.06} // Bottom Right
     };
 
-    overlayTriangles.put("BAD_ZONES", triangle);
-    overlayTriangles.put("GOOD_ENTRIES", triangle);
+    // For DEVTAS and ZONES, they likely use the SAME triangle coordinates
+    // Based on your earlier data, these overlays have similar inner rectangles
+    // Let's use the same triangle coordinates for consistency
+    double[][] devtasZonesTriangle = {
+      {49.98, 24.13}, // Top vertex
+      {23.53, 79.05}, // Bottom Left
+      {76.46, 79.06} // Bottom Right
+    };
 
-    System.out.println("Added BAD_ZONES triangle: " + Arrays.deepToString(triangle));
-    System.out.println("Added GOOD_ENTRIES triangle: " + Arrays.deepToString(triangle));
+    // Put all triangle mappings
+    overlayTriangles.put("BAD_ZONES", badZonesTriangle);
+    overlayTriangles.put("GOOD_ENTRIES", badZonesTriangle);
+    overlayTriangles.put("DEVTAS", devtasZonesTriangle);
+    overlayTriangles.put("ZONES", devtasZonesTriangle);
+
+    System.out.println("Added BAD_ZONES triangle: " + Arrays.deepToString(badZonesTriangle));
+    System.out.println("Added GOOD_ENTRIES triangle: " + Arrays.deepToString(badZonesTriangle));
+    System.out.println("Added DEVTAS triangle: " + Arrays.deepToString(devtasZonesTriangle));
+    System.out.println("Added ZONES triangle: " + Arrays.deepToString(devtasZonesTriangle));
     System.out.println("Total triangles in map: " + overlayTriangles.size());
   }
 
@@ -1790,7 +1798,6 @@ public class VastuController {
     // Calculate triangle dimensions in original image
     double topY = (top[1] / 100.0) * image.getHeight();
     double bottomLeftY = (bottomLeft[1] / 100.0) * image.getHeight();
-    double bottomRightY = (bottomRight[1] / 100.0) * image.getHeight();
 
     double bottomLeftX = (bottomLeft[0] / 100.0) * image.getWidth();
     double bottomRightX = (bottomRight[0] / 100.0) * image.getWidth();
@@ -1798,9 +1805,11 @@ public class VastuController {
     // Triangle properties
     double triangleHeight = bottomLeftY - topY;
     double triangleBaseWidth = bottomRightX - bottomLeftX;
+    double triangleCenterX = bottomLeftX + (triangleBaseWidth / 2.0);
 
     System.out.println(
         "Triangle - Base width: " + triangleBaseWidth + ", Height: " + triangleHeight);
+    System.out.println("Triangle center X: " + triangleCenterX);
     System.out.println("User rect - Width: " + userRectWidth + ", Height: " + userRectHeight);
 
     // Calculate scale to fit the triangle in user's rectangle
@@ -1815,25 +1824,22 @@ public class VastuController {
 
     // Calculate where the triangle's bottom edge sits in the scaled image
     double scaledBottomY = bottomLeftY * scale;
+    double scaledTriangleCenterX = triangleCenterX * scale;
 
-    // Position the image so the triangle's BOTTOM edge aligns with user's rectangle BOTTOM
-    double overlayX = minX;
-    double overlayY = (minY + userRectHeight) - scaledBottomY;
+    // Calculate user rectangle center and bottom
+    double userCenterX = minX + (userRectWidth / 2.0);
+    double userBottomY = minY + userRectHeight;
 
-    // FIX: Add an adjustment to ensure the triangle is visible
-    // The triangle's top should be above the bottom edge
-    double scaledTopY = topY * scale;
-    double triangleVisibleHeight = scaledBottomY - scaledTopY;
+    // POSITION FIX: Align triangle's BOTTOM edge with user's rectangle BOTTOM edge
+    // The triangle's bottom edge is at scaledBottomY in the image coordinates
+    // We want this to align with userBottomY
+    double overlayX = userCenterX - scaledTriangleCenterX;
+    double overlayY = userBottomY - scaledBottomY; // This aligns bottom with bottom
 
-    // If triangle is taller than user rect, we need to adjust
-    if (triangleVisibleHeight > userRectHeight) {
-      // Center the triangle vertically
-      overlayY = minY - (scaledTopY - (userRectHeight - triangleVisibleHeight) / 2);
-    }
-
+    System.out.println("User bottom Y: " + userBottomY);
+    System.out.println("Scaled bottom Y: " + scaledBottomY);
     System.out.println("Position - overlayX: " + overlayX + ", overlayY: " + overlayY);
     System.out.println("minX: " + minX + ", minY: " + minY);
-    System.out.println("Triangle visible height: " + triangleVisibleHeight);
 
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
     overlayImageView1.setLayoutX(overlayX);
