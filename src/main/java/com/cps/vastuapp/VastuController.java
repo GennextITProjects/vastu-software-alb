@@ -141,6 +141,11 @@ public class VastuController {
   // Stack to store the points list for redo functionality
   private Stack<List<Point>> redoStack = new Stack<>();
 
+  // ===== NEW: Stacks for overlay undo/redo =====
+  private final Stack<OverlayState> overlayUndoStack = new Stack<>();
+  private final Stack<OverlayState> overlayRedoStack = new Stack<>();
+  private static final int MAX_UNDO_STACK_SIZE = 20;
+
   // Overlay inner rectangle mappings for precise scaling
   private final Map<String, double[]> overlayInnerRectangles = new HashMap<>();
 
@@ -178,6 +183,21 @@ public class VastuController {
           System.out.println("  Target: " + event.getTarget());
           System.out.println("  Source: " + event.getSource());
         });
+        
+    // ===== NEW: Keyboard shortcuts for overlay undo/redo =====
+    imageContainer.sceneProperty().addListener((observable, oldScene, newScene) -> {
+        if (newScene != null) {
+            newScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (event.isControlDown() && event.getCode() == KeyCode.Z) {
+                    handleOverlayUndo();
+                    event.consume();
+                } else if (event.isControlDown() && event.getCode() == KeyCode.Y) {
+                    handleOverlayRedo();
+                    event.consume();
+                }
+            });
+        }
+    });
   }
 
   private void disableUIComponents(boolean value) {
@@ -290,6 +310,10 @@ public class VastuController {
         .valueProperty()
         .addListener(
             (observable, oldValue, newValue) -> {
+              // ===== NEW: Save state before rotation =====
+              if (overlayImageView1.getImage() != null) {
+                  saveOverlayState("Rotation");
+              }
               angleInput.setText(String.format("%.1f", newValue.doubleValue()));
               applyRotation(overlayImageView1, newValue.doubleValue());
             });
@@ -304,6 +328,13 @@ public class VastuController {
     if (imageCanvas != null) {
       imageCanvas.opacityProperty().bind(opacityCanvasSlider.valueProperty());
     }
+    
+    // ===== NEW: Save state before opacity change =====
+    opacitySlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+        if (overlayImageView1.getImage() != null) {
+            saveOverlayState("Opacity change");
+        }
+    });
   }
 
   private void initializeZoomControls() {
@@ -496,6 +527,10 @@ public class VastuController {
   private void addResizeListener(Rectangle resizeHandle) {
     resizeHandle.setOnMousePressed(
         event -> {
+          // ===== NEW: Save state before resize =====
+          if (overlayImageView1.getImage() != null) {
+              saveOverlayState("Resize start");
+          }
           initialXIV = event.getSceneX();
           initialYIV = event.getSceneY();
           initialWidth = overlayImageView1.getFitWidth();
@@ -951,6 +986,10 @@ public class VastuController {
     // Redraw the canvas if needed
     clearPoints();
     redrawCanvas();
+    
+    // ===== NEW: Clear undo/redo stacks on reset =====
+    overlayUndoStack.clear();
+    overlayRedoStack.clear();
   }
 
   /**
@@ -1236,6 +1275,9 @@ private void applyInnerRectangleScaling(
     imageView.setOnMousePressed(
         event -> {
           if (event.getButton() == MouseButton.PRIMARY) {
+            // ===== NEW: Save state before dragging =====
+            saveOverlayState("Drag start");
+            
             dragDelta[0] = event.getX();
             dragDelta[1] = event.getY();
             imageView.setCursor(Cursor.MOVE);
@@ -1318,6 +1360,9 @@ private void applyInnerRectangleScaling(
     // Handle success (on the JavaFX application thread)
     loadOverlayTask.setOnSucceeded(
         event -> {
+          // ===== NEW: Save state before applying new overlay =====
+          saveOverlayState("New overlay applied");
+          
           Image overlayPathBuilderImage = loadOverlayTask.getValue();
           resetOverlays();
 
@@ -2459,21 +2504,94 @@ private void applyInnerRectangleScaling(
     drawLines();
   }
 
-  //    // Undo action
-  //    @FXML
-  //    private void handleUndoForOverlay() {
-  //        if (!undoStack.isEmpty()) {
-  //            redoStack.push(getCurrentCanvasImage(canvas)); // Save current state to redo stack
-  //            drawImageOnCanvas(undoStack.pop(), gc); // Restore the previous state
-  //        }
-  //    }
-  //
-  //    // Redo action
-  //    @FXML
-  //    private void handleRedoForOverlay() {
-  //        if (!redoStack.isEmpty()) {
-  //            undoStack.push(getCurrentCanvasImage(canvas)); // Save current state to undo stack
-  //            drawImageOnCanvas(redoStack.pop(), gc); // Restore the next state
-  //        }
-  //    }
+  // ===== NEW: Overlay state save method =====
+  private void saveOverlayState(String actionDescription) {
+      if (overlayImageView1.getImage() == null) return;
+      
+      // Limit stack size
+      if (overlayUndoStack.size() >= MAX_UNDO_STACK_SIZE) {
+          overlayUndoStack.remove(0); // Remove oldest state
+      }
+      
+      overlayUndoStack.push(new OverlayState(overlayImageView1));
+      overlayRedoStack.clear(); // Clear redo stack on new action
+      System.out.println("Overlay state saved: " + actionDescription + ". Undo size: " + overlayUndoStack.size());
+  }
+  
+  // ===== NEW: Overlay undo handler =====
+  @FXML
+  private void handleOverlayUndo() {
+      if (overlayUndoStack.isEmpty()) {
+          showAlert(Alert.AlertType.INFORMATION, "Undo", "No more undo actions available");
+          return;
+      }
+      
+      // Save current state to redo stack
+      overlayRedoStack.push(new OverlayState(overlayImageView1));
+      
+      // Restore previous state
+      OverlayState previousState = overlayUndoStack.pop();
+      previousState.restore(overlayImageView1);
+      
+      updateResizeHandles();
+      System.out.println("Overlay UNDO completed. Undo size: " + overlayUndoStack.size() + 
+                        ", Redo size: " + overlayRedoStack.size());
+  }
+  
+  // ===== NEW: Overlay redo handler =====
+  @FXML
+  private void handleOverlayRedo() {
+      if (overlayRedoStack.isEmpty()) {
+          showAlert(Alert.AlertType.INFORMATION, "Redo", "No more redo actions available");
+          return;
+      }
+      
+      // Save current state to undo stack
+      overlayUndoStack.push(new OverlayState(overlayImageView1));
+      
+      // Restore next state
+      OverlayState nextState = overlayRedoStack.pop();
+      nextState.restore(overlayImageView1);
+      
+      updateResizeHandles();
+      System.out.println("Overlay REDO completed. Undo size: " + overlayUndoStack.size() + 
+                        ", Redo size: " + overlayRedoStack.size());
+  }
+}
+
+// ===== OverlayState class goes HERE - AFTER VastuController ends =====
+class OverlayState {
+    final Image image;
+    final double layoutX;
+    final double layoutY;
+    final double fitWidth;
+    final double fitHeight;
+    final double rotate;
+    final double scaleX;
+    final double scaleY;
+    final double opacity;
+    
+    OverlayState(ImageView overlay) {
+        this.image = overlay.getImage();
+        this.layoutX = overlay.getLayoutX();
+        this.layoutY = overlay.getLayoutY();
+        this.fitWidth = overlay.getFitWidth();
+        this.fitHeight = overlay.getFitHeight();
+        this.rotate = overlay.getRotate();
+        this.scaleX = overlay.getScaleX();
+        this.scaleY = overlay.getScaleY();
+        this.opacity = overlay.getOpacity();
+    }
+    
+    void restore(ImageView overlay) {
+        overlay.setImage(image);
+        overlay.setLayoutX(layoutX);
+        overlay.setLayoutY(layoutY);
+        overlay.setFitWidth(fitWidth);
+        overlay.setFitHeight(fitHeight);
+        overlay.setRotate(rotate);
+        overlay.setScaleX(scaleX);
+        overlay.setScaleY(scaleY);
+        overlay.setOpacity(opacity);
+    }
 }
