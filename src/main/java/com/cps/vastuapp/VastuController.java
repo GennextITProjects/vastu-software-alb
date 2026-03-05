@@ -984,10 +984,10 @@ public class VastuController {
    * @param innerRect Array containing {left_percentage, top_percentage, width_percentage,
    *     height_percentage}
    */
-  private void applyInnerRectangleScaling(
-      Image image, double userRectWidth, double userRectHeight, double[] innerRect) {
+private void applyInnerRectangleScaling(
+    Image image, double userRectWidth, double userRectHeight, double[] innerRect) {
 
-    System.out.println("=== INNER RECTANGLE SCALING ===");
+    System.out.println("=== INNER RECTANGLE SCALING (EXACT STRETCH) ===");
     System.out.println("Points count: " + points.size());
     System.out.println("Bounding rect - minX: " + minX + ", minY: " + minY);
     System.out.println("Bounding rect - width: " + userRectWidth + ", height: " + userRectHeight);
@@ -1003,24 +1003,21 @@ public class VastuController {
     double innerRectWidth = (innerWidthPercent / 100.0) * image.getWidth();
     double innerRectHeight = (innerHeightPercent / 100.0) * image.getHeight();
 
-    // Calculate the scale needed to make the inner rectangle match the user's rectangle
+    // Calculate INDEPENDENT scales for X and Y (exact stretch)
     double scaleX = userRectWidth / innerRectWidth;
     double scaleY = userRectHeight / innerRectHeight;
 
-    // FIX: Use Math.max to STRETCH to fill the rectangle instead of Math.min to fit inside
-    double scale = Math.max(scaleX, scaleY);
-
     System.out.println("scaleX: " + scaleX + ", scaleY: " + scaleY);
-    System.out.println("Using scale: " + scale + " (using Math.max to stretch)");
+    System.out.println("Using independent scales for EXACT stretch (image will distort)");
 
-    // Apply the scaling to the entire overlay image
+    // Apply DIFFERENT scaling for width and height (exact stretch)
     overlayImageView1.setPreserveRatio(false);
     overlayImageView1.setFitWidth(image.getWidth() * scaleX);
     overlayImageView1.setFitHeight(image.getHeight() * scaleY);
 
-    // Calculate where the inner rectangle sits within the scaled overlay
-    double innerRectX = (innerLeftPercent / 100.0) * image.getWidth() * scale;
-    double innerRectY = (innerTopPercent / 100.0) * image.getHeight() * scale;
+    // Calculate where the inner rectangle sits - USE THE SAME SCALES consistently
+    double innerRectX = (innerLeftPercent / 100.0) * image.getWidth() * scaleX;  // Use scaleX for X position
+    double innerRectY = (innerTopPercent / 100.0) * image.getHeight() * scaleY; // Use scaleY for Y position
 
     // Position the overlay so the inner rectangle aligns with the user's selection
     double overlayX = minX - innerRectX;
@@ -1031,10 +1028,10 @@ public class VastuController {
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
 
-    System.out.println("Scale: " + scale);
     System.out.println("Inner rect size: " + innerRectWidth + " x " + innerRectHeight);
     System.out.println("User rect size: " + userRectWidth + " x " + userRectHeight);
-  }
+    System.out.println("Overlay position: (" + overlayX + ", " + overlayY + ")");
+}
 
   /**
    * Applies enhanced scaling logic for circular overlays. Maps the inner circle to the user's
