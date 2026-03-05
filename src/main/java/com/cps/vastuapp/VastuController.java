@@ -1845,71 +1845,80 @@ private void applyInnerRectangleScaling(
     System.out.println("Total triangles in map: " + overlayTriangles.size());
   }
 
-  /**
-   * Applies scaling for triangular overlays. Maps the triangle's bottom base to the user's
-   * rectangle bottom edge.
-   */
-  private void applyTriangleScaling(
-      Image image, double userRectWidth, double userRectHeight, double[][] triangle) {
-    System.out.println("=== Applying Triangle Scaling ===");
+/**
+ * Applies scaling for triangular overlays.
+ * Maps the triangle's center to the user's rectangle center.
+ * Triangle scales to fit within the rectangle while maintaining proportions.
+ */
+private void applyTriangleScaling(
+    Image image, double userRectWidth, double userRectHeight, double[][] triangle) {
+    
+    System.out.println("=== Applying Triangle Scaling (Center Alignment) ===");
 
-    // Get triangle vertices
+    // Triangle center coordinates (hardcoded from your data)
+    double centerXPercent = 50.03; // (6399/12790)*100
+    double centerYPercent = 61.76; // (7500/12143)*100
+    
+    // Calculate center in original image pixels
+    double centerX = (centerXPercent / 100.0) * image.getWidth();
+    double centerY = (centerYPercent / 100.0) * image.getHeight();
+    
+    // Find triangle bounds to calculate size
     double[] top = triangle[0];
     double[] bottomLeft = triangle[1];
     double[] bottomRight = triangle[2];
-
-    // Calculate triangle dimensions in original image
-    double topY = (top[1] / 100.0) * image.getHeight();
-    double bottomLeftY = (bottomLeft[1] / 100.0) * image.getHeight();
-
-    double bottomLeftX = (bottomLeft[0] / 100.0) * image.getWidth();
-    double bottomRightX = (bottomRight[0] / 100.0) * image.getWidth();
-
-    // Triangle properties
-    double triangleHeight = bottomLeftY - topY;
-    double triangleBaseWidth = bottomRightX - bottomLeftX;
-    double triangleCenterX = bottomLeftX + (triangleBaseWidth / 2.0);
-
-    System.out.println(
-        "Triangle - Base width: " + triangleBaseWidth + ", Height: " + triangleHeight);
-    System.out.println("Triangle center X: " + triangleCenterX);
-    System.out.println("User rect - Width: " + userRectWidth + ", Height: " + userRectHeight);
-
-    // Calculate scale to fit the triangle in user's rectangle
-    double scale = userRectWidth / triangleBaseWidth;
-
-    System.out.println("Using scale: " + scale);
-
+    
+    // Calculate triangle bounds
+    double minTriangleX = Math.min(top[0], Math.min(bottomLeft[0], bottomRight[0]));
+    double maxTriangleX = Math.max(top[0], Math.max(bottomLeft[0], bottomRight[0]));
+    double minTriangleY = Math.min(top[1], Math.min(bottomLeft[1], bottomRight[1]));
+    double maxTriangleY = Math.max(top[1], Math.max(bottomLeft[1], bottomRight[1]));
+    
+    // Convert to actual pixels
+    double triangleWidth = ((maxTriangleX - minTriangleX) / 100.0) * image.getWidth();
+    double triangleHeight = ((maxTriangleY - minTriangleY) / 100.0) * image.getHeight();
+    
+    System.out.println("Triangle center: (" + centerX + ", " + centerY + ")");
+    System.out.println("Triangle size: " + triangleWidth + " x " + triangleHeight);
+    System.out.println("User rect size: " + userRectWidth + " x " + userRectHeight);
+    
+    // Calculate scale to fit triangle in user's rectangle (maintain proportions)
+    double scaleX = userRectWidth / triangleWidth;
+    double scaleY = userRectHeight / triangleHeight;
+    
+    // Use MIN scale to ensure triangle fits completely inside rectangle
+    double scale = Math.min(scaleX, scaleY);
+    
+    System.out.println("scaleX: " + scaleX + ", scaleY: " + scaleY);
+    System.out.println("Using scale: " + scale + " (fits inside)");
+    
     // Apply scaling to entire image
-    overlayImageView1.setPreserveRatio(false);
+    overlayImageView1.setPreserveRatio(true); // Keep triangle proportions
     overlayImageView1.setFitWidth(image.getWidth() * scale);
     overlayImageView1.setFitHeight(image.getHeight() * scale);
-
-    // Calculate where the triangle's bottom edge sits in the scaled image
-    double scaledBottomY = bottomLeftY * scale;
-    double scaledTriangleCenterX = triangleCenterX * scale;
-
-    // Calculate user rectangle center and bottom
+    
+    // Calculate scaled center position
+    double scaledCenterX = centerX * scale;
+    double scaledCenterY = centerY * scale;
+    
+    // Calculate user rectangle center
     double userCenterX = minX + (userRectWidth / 2.0);
-    double userBottomY = minY + userRectHeight;
-
-    // POSITION FIX: Align triangle's BOTTOM edge with user's rectangle BOTTOM edge
-    // The triangle's bottom edge is at scaledBottomY in the image coordinates
-    // We want this to align with userBottomY
-    double overlayX = userCenterX - scaledTriangleCenterX;
-    double overlayY = userBottomY - scaledBottomY; // This aligns bottom with bottom
-
-    System.out.println("User bottom Y: " + userBottomY);
-    System.out.println("Scaled bottom Y: " + scaledBottomY);
-    System.out.println("Position - overlayX: " + overlayX + ", overlayY: " + overlayY);
-    System.out.println("minX: " + minX + ", minY: " + minY);
-
+    double userCenterY = minY + (userRectHeight / 2.0);
+    
+    // Position so triangle CENTER aligns with user rectangle CENTER
+    double overlayX = userCenterX - scaledCenterX;
+    double overlayY = userCenterY - scaledCenterY;
+    
+    System.out.println("User center: (" + userCenterX + ", " + userCenterY + ")");
+    System.out.println("Scaled triangle center: (" + scaledCenterX + ", " + scaledCenterY + ")");
+    System.out.println("Overlay position: (" + overlayX + ", " + overlayY + ")");
+    
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
-
+    
     System.out.println("=== Triangle Scaling Complete ===");
-  }
+}
 
   private void setupData() {
 
