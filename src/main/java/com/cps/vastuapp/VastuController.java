@@ -986,6 +986,13 @@ public class VastuController {
    */
   private void applyInnerRectangleScaling(
       Image image, double userRectWidth, double userRectHeight, double[] innerRect) {
+
+    System.out.println("=== INNER RECTANGLE SCALING ===");
+    System.out.println("Points count: " + points.size());
+    System.out.println("Bounding rect - minX: " + minX + ", minY: " + minY);
+    System.out.println("Bounding rect - width: " + userRectWidth + ", height: " + userRectHeight);
+    System.out.println("Inner rect percentages: " + Arrays.toString(innerRect));
+
     // Extract inner rectangle coordinates as percentages
     double innerLeftPercent = innerRect[0];
     double innerTopPercent = innerRect[1];
@@ -1000,13 +1007,16 @@ public class VastuController {
     double scaleX = userRectWidth / innerRectWidth;
     double scaleY = userRectHeight / innerRectHeight;
 
-    // Use the smaller scale to ensure the inner rectangle fits within the user's selection
-    double scale = Math.min(scaleX, scaleY);
+    // FIX: Use Math.max to STRETCH to fill the rectangle instead of Math.min to fit inside
+    double scale = Math.max(scaleX, scaleY);
+
+    System.out.println("scaleX: " + scaleX + ", scaleY: " + scaleY);
+    System.out.println("Using scale: " + scale + " (using Math.max to stretch)");
 
     // Apply the scaling to the entire overlay image
     overlayImageView1.setPreserveRatio(false);
-    overlayImageView1.setFitWidth(image.getWidth() * scale);
-    overlayImageView1.setFitHeight(image.getHeight() * scale);
+    overlayImageView1.setFitWidth(image.getWidth() * scaleX);
+    overlayImageView1.setFitHeight(image.getHeight() * scaleY);
 
     // Calculate where the inner rectangle sits within the scaled overlay
     double innerRectX = (innerLeftPercent / 100.0) * image.getWidth() * scale;
@@ -1018,8 +1028,6 @@ public class VastuController {
 
     // Align the ImageView's top-left corner with the StackPane's top-left corner
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
-
-    // Adjust its translation to align the inner rectangle with the user's selection
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
 
@@ -1421,7 +1429,7 @@ public class VastuController {
         if (innerCircle != null) {
           applyInnerCircleScaling(image, width, height, innerCircle);
         } else {
-          overlayImageView1.setPreserveRatio(true);
+          overlayImageView1.setPreserveRatio(false);
           double maxSquareSize = Math.min(width, height);
           overlayImageView1.setFitWidth(maxSquareSize);
           overlayImageView1.setFitHeight(maxSquareSize);
@@ -1439,6 +1447,19 @@ public class VastuController {
         // Rectangle handling
         String overlayName = getOverlayNameFromPath(overlayPathBuilder);
         double[] innerRect = overlayInnerRectangles.get(overlayName);
+
+        // ===== ADD THIS DEBUG BLOCK =====
+        System.out.println("=== RECTANGLE HANDLING ===");
+        System.out.println("Overlay name: " + overlayName);
+        System.out.println("Points count: " + points.size());
+        System.out.println("Bounding rect - minX: " + minX + ", minY: " + minY);
+        System.out.println("Bounding rect - maxX: " + maxX + ", maxY: " + maxY);
+        System.out.println("Bounding rect - width: " + width + ", height: " + height);
+        System.out.println("Inner rect found: " + (innerRect != null ? "YES" : "NO"));
+        if (innerRect != null) {
+          System.out.println("Inner rect percentages: " + Arrays.toString(innerRect));
+        }
+        // ===== END DEBUG BLOCK =====
 
         if (innerRect != null) {
           applyInnerRectangleScaling(image, width, height, innerRect);
