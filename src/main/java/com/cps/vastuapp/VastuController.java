@@ -239,7 +239,7 @@ public class VastuController {
   }
 
   private void initializeInputs() {
-    angleInput.setPromptText("Enter angle (-45 to +45)");
+    updateAngleInputPrompt(); // Set initial prompt based on default shape
     angleInput.setPrefWidth(150);
     overlayImageView1.getTransforms().addAll(imageRotate, imageScale);
 
@@ -271,6 +271,22 @@ public class VastuController {
         createAngleTextFormatter()); // TextFormatter added here to restrict input to valid values.
   }
 
+  /**
+   * Updates the angle input prompt text based on the currently selected shape.
+   * Triangles and Circles get -180 to +180 range, other shapes get -45 to +45 range.
+   */
+  private void updateAngleInputPrompt() {
+    String selectedCategory = primaryDropdown.getValue();
+    boolean isTriangle = "Triangle".equals(selectedCategory);
+    boolean isCircle = "Circle".equals(selectedCategory);
+    
+    if (isTriangle || isCircle) {
+      angleInput.setPromptText("Enter angle (-180 to +180)");
+    } else {
+      angleInput.setPromptText("Enter angle (-45 to +45)");
+    }
+  }
+
   private TextFormatter<String> createAngleTextFormatter() {
     UnaryOperator<TextFormatter.Change> filter =
         change -> {
@@ -289,11 +305,13 @@ public class VastuController {
 
     try {
       double angle = Double.parseDouble(newValue);
-      if (angle >= -45 && angle <= 45) {
+      double[] range = getRotationRange();
+      
+      if (angle >= range[0] && angle <= range[1]) {
         angleSlider.setValue(angle);
         applyRotation(overlayImageView1, angle);
       } else {
-        showTooltip(angleInput, "Please enter a value between -45 and +45");
+        showTooltip(angleInput, "Please enter a value between " + (int)range[0] + " and " + (int)range[1]);
       }
     } catch (NumberFormatException e) {
       showTooltip(angleInput, "Invalid input. Please enter a numeric value.");
@@ -301,10 +319,7 @@ public class VastuController {
   }
 
   private void initializeSliders() {
-    // Configure angle slider for -45 to +45 degree range
-    angleSlider.setMin(-45.0);
-    angleSlider.setMax(45.0);
-    angleSlider.setValue(0.0);
+    updateAngleSliderRange(); // Set initial slider range based on default shape
 
     angleSlider
         .valueProperty()
@@ -2050,6 +2065,9 @@ private void applyTriangleScaling(
       // Clear tertiary dropdown
       tertiaryDropdown.setItems(FXCollections.observableArrayList());
       tertiaryDropdown.setDisable(true);
+      
+      // Update rotation UI when shape selection changes
+      updateRotationUIForShape();
     }
   }
 
@@ -2565,6 +2583,53 @@ private void applyTriangleScaling(
       updateResizeHandles();
       System.out.println("Overlay REDO completed. Undo size: " + overlayUndoStack.size() + 
                         ", Redo size: " + overlayRedoStack.size());
+  }
+
+  /**
+   * Returns the rotation range based on the currently selected shape.
+   * Triangles and Circles get -180 to +180 range, other shapes get -45 to +45 range.
+   * 
+   * @return Array containing {min_angle, max_angle}
+   */
+  private double[] getRotationRange() {
+    String selectedCategory = primaryDropdown.getValue();
+    boolean isTriangle = "Triangle".equals(selectedCategory);
+    boolean isCircle = "Circle".equals(selectedCategory);
+    
+    if (isTriangle || isCircle) {
+      return new double[] {-180.0, 180.0};
+    } else {
+      return new double[] {-45.0, 45.0};
+    }
+  }
+
+  /**
+   * Updates the angle slider range based on the currently selected shape.
+   * Triangles get -180 to +180 range, other shapes get -45 to +45 range.
+   */
+  private void updateAngleSliderRange() {
+    double[] range = getRotationRange();
+    angleSlider.setMin(range[0]);
+    angleSlider.setMax(range[1]);
+    angleSlider.setValue(0.0);
+  }
+
+  /**
+   * Updates the angle input prompt and slider range when the primary dropdown selection changes.
+   * This ensures the UI elements reflect the correct rotation range for the selected shape.
+   */
+  private void updateRotationUIForShape() {
+    updateAngleInputPrompt();
+    updateAngleSliderRange();
+    
+    // Reset angle to 0 if it's outside the new range
+    double currentAngle = angleSlider.getValue();
+    double[] range = getRotationRange();
+    
+    if (currentAngle < range[0] || currentAngle > range[1]) {
+      angleSlider.setValue(0.0);
+      angleInput.setText("0.0");
+    }
   }
 }
 
