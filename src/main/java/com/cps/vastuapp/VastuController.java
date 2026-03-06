@@ -326,22 +326,39 @@ public class VastuController {
   }
 
   private void initializeSliders() {
-    updateAngleSliderRange(); // Set initial slider range based on default shape
+    // Default range for non-triangle overlays
+    angleSlider.setMin(-45.0);
+    angleSlider.setMax(45.0);
+    angleSlider.setValue(0.0);
 
-    angleSlider
-        .valueProperty()
-        .addListener(
-            (observable, oldValue, newValue) -> {
-              // ===== NEW: Save state before rotation =====
-              if (overlayImageView1.getImage() != null) {
+    // Add listener to change range based on selected category
+    primaryDropdown.valueProperty().addListener((obs, oldVal, newVal) -> {
+        if ("Triangle".equals(newVal)) {
+            // Triangle overlays need 180° rotation
+            angleSlider.setMin(-180.0);
+            angleSlider.setMax(180.0);
+            System.out.println("Triangle selected: Rotation range set to -180° to +180°");
+        } else {
+            // Other shapes use default -45° to +45°
+            angleSlider.setMin(-45.0);
+            angleSlider.setMax(45.0);
+            System.out.println(newVal + " selected: Rotation range set to -45° to +45°");
+        }
+        // Reset to 0 when changing shapes
+        angleSlider.setValue(0.0);
+    });
+
+    angleSlider.valueProperty().addListener(
+        (observable, oldValue, newValue) -> {
+            if (overlayImageView1.getImage() != null) {
                 saveOverlayState("Rotation");
-              }
-              angleInput.setText(String.format("%.1f", newValue.doubleValue()));
-              applyRotation(overlayImageView1, newValue.doubleValue());
-            });
+            }
+            angleInput.setText(String.format("%.1f", newValue.doubleValue()));
+            applyRotation(overlayImageView1, newValue.doubleValue());
+        });
 
     bindOpacityProperties();
-  }
+}
 
   private void bindOpacityProperties() {
     if (overlayImageView1 != null) {
@@ -1606,12 +1623,15 @@ public class VastuController {
 private void applyRotation(ImageView imageView, double angle) {
     Platform.runLater(
         () -> {
-            // Get the current rotation angle from slider if needed
             double currentAngle = angle;
             
-            // Check if this is a triangle overlay (has center data)
+            // Check if this is a TRIANGLE (has triangle-specific userData)
+            String selectedCategory = primaryDropdown.getValue();
             Object userData = imageView.getUserData();
-            if (userData instanceof double[] && ((double[])userData).length >= 2) {
+            if (userData instanceof Object[] && ((Object[])userData).length >= 3) {
+
+                
+                // TRIANGLE: Use stored center for rotation
                 double[] data = (double[]) userData;
                 double centerX = data[0];
                 double centerY = data[1];
@@ -1619,15 +1639,14 @@ private void applyRotation(ImageView imageView, double angle) {
                 // Clear existing transforms
                 imageView.getTransforms().clear();
                 
-                // Create a new rotate transform with the correct pivot point
+                // Create and add rotation transform
                 Rotate rotate = new Rotate(currentAngle, centerX, centerY);
-                
-                // Add the rotation to the image view
                 imageView.getTransforms().add(rotate);
                 
                 System.out.println("Triangle rotated " + currentAngle + "° around (" + centerX + ", " + centerY + ")");
             } else {
-                // Non-triangle overlay - use default rotation
+                // NON-TRIANGLE: Simple rotation (this is what worked before)
+                // IMPORTANT: Don't clear transforms for non-triangles
                 imageView.setRotate(currentAngle);
             }
             
