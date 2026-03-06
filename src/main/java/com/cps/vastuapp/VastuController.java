@@ -183,21 +183,26 @@ public class VastuController {
           System.out.println("  Target: " + event.getTarget());
           System.out.println("  Source: " + event.getSource());
         });
-        
+
     // ===== NEW: Keyboard shortcuts for overlay undo/redo =====
-    imageContainer.sceneProperty().addListener((observable, oldScene, newScene) -> {
-        if (newScene != null) {
-            newScene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                if (event.isControlDown() && event.getCode() == KeyCode.Z) {
-                    handleOverlayUndo();
-                    event.consume();
-                } else if (event.isControlDown() && event.getCode() == KeyCode.Y) {
-                    handleOverlayRedo();
-                    event.consume();
-                }
+    imageContainer
+        .sceneProperty()
+        .addListener(
+            (observable, oldScene, newScene) -> {
+              if (newScene != null) {
+                newScene.addEventFilter(
+                    KeyEvent.KEY_PRESSED,
+                    event -> {
+                      if (event.isControlDown() && event.getCode() == KeyCode.Z) {
+                        handleOverlayUndo();
+                        event.consume();
+                      } else if (event.isControlDown() && event.getCode() == KeyCode.Y) {
+                        handleOverlayRedo();
+                        event.consume();
+                      }
+                    });
+              }
             });
-        }
-    });
   }
 
   private void disableUIComponents(boolean value) {
@@ -239,7 +244,7 @@ public class VastuController {
   }
 
   private void initializeInputs() {
-    angleInput.setPromptText("Enter angle (-45 to +45)");
+    updateAngleInputPrompt(); // Set initial prompt based on default shape
     angleInput.setPrefWidth(150);
     overlayImageView1.getTransforms().addAll(imageRotate, imageScale);
 
@@ -271,6 +276,22 @@ public class VastuController {
         createAngleTextFormatter()); // TextFormatter added here to restrict input to valid values.
   }
 
+  /**
+   * Updates the angle input prompt text based on the currently selected shape. Triangles and
+   * Circles get -180 to +180 range, other shapes get -45 to +45 range.
+   */
+  private void updateAngleInputPrompt() {
+    String selectedCategory = primaryDropdown.getValue();
+    boolean isTriangle = "Triangle".equals(selectedCategory);
+    boolean isCircle = "Circle".equals(selectedCategory);
+
+    if (isTriangle || isCircle) {
+      angleInput.setPromptText("Enter angle (-180 to +180)");
+    } else {
+      angleInput.setPromptText("Enter angle (-45 to +45)");
+    }
+  }
+
   private TextFormatter<String> createAngleTextFormatter() {
     UnaryOperator<TextFormatter.Change> filter =
         change -> {
@@ -289,11 +310,15 @@ public class VastuController {
 
     try {
       double angle = Double.parseDouble(newValue);
-      if (angle >= -45 && angle <= 45) {
+      double[] range = getRotationRange();
+
+      if (angle >= range[0] && angle <= range[1]) {
         angleSlider.setValue(angle);
         applyRotation(overlayImageView1, angle);
       } else {
-        showTooltip(angleInput, "Please enter a value between -45 and +45");
+        showTooltip(
+            angleInput,
+            "Please enter a value between " + (int) range[0] + " and " + (int) range[1]);
       }
     } catch (NumberFormatException e) {
       showTooltip(angleInput, "Invalid input. Please enter a numeric value.");
@@ -301,10 +326,7 @@ public class VastuController {
   }
 
   private void initializeSliders() {
-    // Configure angle slider for -45 to +45 degree range
-    angleSlider.setMin(-45.0);
-    angleSlider.setMax(45.0);
-    angleSlider.setValue(0.0);
+    updateAngleSliderRange(); // Set initial slider range based on default shape
 
     angleSlider
         .valueProperty()
@@ -312,7 +334,7 @@ public class VastuController {
             (observable, oldValue, newValue) -> {
               // ===== NEW: Save state before rotation =====
               if (overlayImageView1.getImage() != null) {
-                  saveOverlayState("Rotation");
+                saveOverlayState("Rotation");
               }
               angleInput.setText(String.format("%.1f", newValue.doubleValue()));
               applyRotation(overlayImageView1, newValue.doubleValue());
@@ -328,13 +350,16 @@ public class VastuController {
     if (imageCanvas != null) {
       imageCanvas.opacityProperty().bind(opacityCanvasSlider.valueProperty());
     }
-    
+
     // ===== NEW: Save state before opacity change =====
-    opacitySlider.valueProperty().addListener((observable, oldValue, newValue) -> {
-        if (overlayImageView1.getImage() != null) {
-            saveOverlayState("Opacity change");
-        }
-    });
+    opacitySlider
+        .valueProperty()
+        .addListener(
+            (observable, oldValue, newValue) -> {
+              if (overlayImageView1.getImage() != null) {
+                saveOverlayState("Opacity change");
+              }
+            });
   }
 
   private void initializeZoomControls() {
@@ -529,7 +554,7 @@ public class VastuController {
         event -> {
           // ===== NEW: Save state before resize =====
           if (overlayImageView1.getImage() != null) {
-              saveOverlayState("Resize start");
+            saveOverlayState("Resize start");
           }
           initialXIV = event.getSceneX();
           initialYIV = event.getSceneY();
@@ -986,7 +1011,7 @@ public class VastuController {
     // Redraw the canvas if needed
     clearPoints();
     redrawCanvas();
-    
+
     // ===== NEW: Clear undo/redo stacks on reset =====
     overlayUndoStack.clear();
     overlayRedoStack.clear();
@@ -1023,8 +1048,8 @@ public class VastuController {
    * @param innerRect Array containing {left_percentage, top_percentage, width_percentage,
    *     height_percentage}
    */
-private void applyInnerRectangleScaling(
-    Image image, double userRectWidth, double userRectHeight, double[] innerRect) {
+  private void applyInnerRectangleScaling(
+      Image image, double userRectWidth, double userRectHeight, double[] innerRect) {
 
     System.out.println("=== INNER RECTANGLE SCALING (EXACT STRETCH) ===");
     System.out.println("Points count: " + points.size());
@@ -1055,8 +1080,10 @@ private void applyInnerRectangleScaling(
     overlayImageView1.setFitHeight(image.getHeight() * scaleY);
 
     // Calculate where the inner rectangle sits - USE THE SAME SCALES consistently
-    double innerRectX = (innerLeftPercent / 100.0) * image.getWidth() * scaleX;  // Use scaleX for X position
-    double innerRectY = (innerTopPercent / 100.0) * image.getHeight() * scaleY; // Use scaleY for Y position
+    double innerRectX =
+        (innerLeftPercent / 100.0) * image.getWidth() * scaleX; // Use scaleX for X position
+    double innerRectY =
+        (innerTopPercent / 100.0) * image.getHeight() * scaleY; // Use scaleY for Y position
 
     // Position the overlay so the inner rectangle aligns with the user's selection
     double overlayX = minX - innerRectX;
@@ -1070,7 +1097,7 @@ private void applyInnerRectangleScaling(
     System.out.println("Inner rect size: " + innerRectWidth + " x " + innerRectHeight);
     System.out.println("User rect size: " + userRectWidth + " x " + userRectHeight);
     System.out.println("Overlay position: (" + overlayX + ", " + overlayY + ")");
-}
+  }
 
   /**
    * Applies enhanced scaling logic for circular overlays. Maps the inner circle to the user's
@@ -1277,7 +1304,7 @@ private void applyInnerRectangleScaling(
           if (event.getButton() == MouseButton.PRIMARY) {
             // ===== NEW: Save state before dragging =====
             saveOverlayState("Drag start");
-            
+
             dragDelta[0] = event.getX();
             dragDelta[1] = event.getY();
             imageView.setCursor(Cursor.MOVE);
@@ -1362,7 +1389,7 @@ private void applyInnerRectangleScaling(
         event -> {
           // ===== NEW: Save state before applying new overlay =====
           saveOverlayState("New overlay applied");
-          
+
           Image overlayPathBuilderImage = loadOverlayTask.getValue();
           resetOverlays();
 
@@ -1570,20 +1597,44 @@ private void applyInnerRectangleScaling(
   }
 
   /**
-   * Applies rotation to the given ImageView by the specified angle.
+   * Applies rotation to the given ImageView by the specified angle. Sets rotation pivot to the
+   * triangle's visual center.
    *
    * @param imageView The ImageView to rotate.
    * @param angle The rotation angle in degrees.
    */
-  private void applyRotation(ImageView imageView, double angle) {
+private void applyRotation(ImageView imageView, double angle) {
     Platform.runLater(
         () -> {
-          imageView.setRotate(angle);
-          updateResizeHandles();
-          drawCompass(
-              gco, compassCanvas.getWidth(), compassCanvas.getHeight(), angle, compassDirection);
+            // Get the current rotation angle from slider if needed
+            double currentAngle = angle;
+            
+            // Check if this is a triangle overlay (has center data)
+            Object userData = imageView.getUserData();
+            if (userData instanceof double[] && ((double[])userData).length >= 2) {
+                double[] data = (double[]) userData;
+                double centerX = data[0];
+                double centerY = data[1];
+                
+                // Clear existing transforms
+                imageView.getTransforms().clear();
+                
+                // Create a new rotate transform with the correct pivot point
+                Rotate rotate = new Rotate(currentAngle, centerX, centerY);
+                
+                // Add the rotation to the image view
+                imageView.getTransforms().add(rotate);
+                
+                System.out.println("Triangle rotated " + currentAngle + "° around (" + centerX + ", " + centerY + ")");
+            } else {
+                // Non-triangle overlay - use default rotation
+                imageView.setRotate(currentAngle);
+            }
+            
+            updateResizeHandles();
+            drawCompass(gco, compassCanvas.getWidth(), compassCanvas.getHeight(), currentAngle, compassDirection);
         });
-  }
+}
 
   /**
    * Handle zooming with mouse scroll, based on the cursor position on the image.
@@ -1845,11 +1896,10 @@ private void applyInnerRectangleScaling(
     System.out.println("Total triangles in map: " + overlayTriangles.size());
   }
 
-/**
- * Applies scaling for triangular overlays.
- * Maps the triangle's center to the user's rectangle center.
- * Triangle scales to fit within the rectangle while maintaining proportions.
- */
+  /**
+   * Applies scaling for triangular overlays. Maps the triangle's center to the user's rectangle
+   * center.
+   */
 private void applyTriangleScaling(
     Image image, double userRectWidth, double userRectHeight, double[][] triangle) {
     
@@ -1889,8 +1939,10 @@ private void applyTriangleScaling(
     // Use MIN scale to ensure triangle fits completely inside rectangle
     double scale = Math.min(scaleX, scaleY);
     
-    System.out.println("scaleX: " + scaleX + ", scaleY: " + scaleY);
-    System.out.println("Using scale: " + scale + " (fits inside)");
+    System.out.println("Using scale: " + scale);
+    
+    // Clear any existing transforms
+    overlayImageView1.getTransforms().clear();
     
     // Apply scaling to entire image
     overlayImageView1.setPreserveRatio(true); // Keep triangle proportions
@@ -1909,13 +1961,14 @@ private void applyTriangleScaling(
     double overlayX = userCenterX - scaledCenterX;
     double overlayY = userCenterY - scaledCenterY;
     
-    System.out.println("User center: (" + userCenterX + ", " + userCenterY + ")");
-    System.out.println("Scaled triangle center: (" + scaledCenterX + ", " + scaledCenterY + ")");
     System.out.println("Overlay position: (" + overlayX + ", " + overlayY + ")");
     
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
+    
+    // Store triangle center in userData for rotation to use
+    overlayImageView1.setUserData(new double[]{scaledCenterX, scaledCenterY, angleSlider.getValue()});
     
     System.out.println("=== Triangle Scaling Complete ===");
 }
@@ -2050,6 +2103,9 @@ private void applyTriangleScaling(
       // Clear tertiary dropdown
       tertiaryDropdown.setItems(FXCollections.observableArrayList());
       tertiaryDropdown.setDisable(true);
+
+      // Update rotation UI when shape selection changes
+      updateRotationUIForShape();
     }
   }
 
@@ -2515,92 +2571,146 @@ private void applyTriangleScaling(
 
   // ===== NEW: Overlay state save method =====
   private void saveOverlayState(String actionDescription) {
-      if (overlayImageView1.getImage() == null) return;
-      
-      // Limit stack size
-      if (overlayUndoStack.size() >= MAX_UNDO_STACK_SIZE) {
-          overlayUndoStack.remove(0); // Remove oldest state
-      }
-      
-      overlayUndoStack.push(new OverlayState(overlayImageView1));
-      overlayRedoStack.clear(); // Clear redo stack on new action
-      System.out.println("Overlay state saved: " + actionDescription + ". Undo size: " + overlayUndoStack.size());
+    if (overlayImageView1.getImage() == null) return;
+
+    // Limit stack size
+    if (overlayUndoStack.size() >= MAX_UNDO_STACK_SIZE) {
+      overlayUndoStack.remove(0); // Remove oldest state
+    }
+
+    overlayUndoStack.push(new OverlayState(overlayImageView1));
+    overlayRedoStack.clear(); // Clear redo stack on new action
+    System.out.println(
+        "Overlay state saved: " + actionDescription + ". Undo size: " + overlayUndoStack.size());
   }
-  
+
   // ===== NEW: Overlay undo handler =====
   @FXML
   private void handleOverlayUndo() {
-      if (overlayUndoStack.isEmpty()) {
-          showAlert(Alert.AlertType.INFORMATION, "Undo", "No more undo actions available");
-          return;
-      }
-      
-      // Save current state to redo stack
-      overlayRedoStack.push(new OverlayState(overlayImageView1));
-      
-      // Restore previous state
-      OverlayState previousState = overlayUndoStack.pop();
-      previousState.restore(overlayImageView1);
-      
-      updateResizeHandles();
-      System.out.println("Overlay UNDO completed. Undo size: " + overlayUndoStack.size() + 
-                        ", Redo size: " + overlayRedoStack.size());
+    if (overlayUndoStack.isEmpty()) {
+      showAlert(Alert.AlertType.INFORMATION, "Undo", "No more undo actions available");
+      return;
+    }
+
+    // Save current state to redo stack
+    overlayRedoStack.push(new OverlayState(overlayImageView1));
+
+    // Restore previous state
+    OverlayState previousState = overlayUndoStack.pop();
+    previousState.restore(overlayImageView1);
+
+    updateResizeHandles();
+    System.out.println(
+        "Overlay UNDO completed. Undo size: "
+            + overlayUndoStack.size()
+            + ", Redo size: "
+            + overlayRedoStack.size());
   }
-  
+
   // ===== NEW: Overlay redo handler =====
   @FXML
   private void handleOverlayRedo() {
-      if (overlayRedoStack.isEmpty()) {
-          showAlert(Alert.AlertType.INFORMATION, "Redo", "No more redo actions available");
-          return;
-      }
-      
-      // Save current state to undo stack
-      overlayUndoStack.push(new OverlayState(overlayImageView1));
-      
-      // Restore next state
-      OverlayState nextState = overlayRedoStack.pop();
-      nextState.restore(overlayImageView1);
-      
-      updateResizeHandles();
-      System.out.println("Overlay REDO completed. Undo size: " + overlayUndoStack.size() + 
-                        ", Redo size: " + overlayRedoStack.size());
+    if (overlayRedoStack.isEmpty()) {
+      showAlert(Alert.AlertType.INFORMATION, "Redo", "No more redo actions available");
+      return;
+    }
+
+    // Save current state to undo stack
+    overlayUndoStack.push(new OverlayState(overlayImageView1));
+
+    // Restore next state
+    OverlayState nextState = overlayRedoStack.pop();
+    nextState.restore(overlayImageView1);
+
+    updateResizeHandles();
+    System.out.println(
+        "Overlay REDO completed. Undo size: "
+            + overlayUndoStack.size()
+            + ", Redo size: "
+            + overlayRedoStack.size());
+  }
+
+  /**
+   * Returns the rotation range based on the currently selected shape. Triangles and Circles get
+   * -180 to +180 range, other shapes get -45 to +45 range.
+   *
+   * @return Array containing {min_angle, max_angle}
+   */
+  private double[] getRotationRange() {
+    String selectedCategory = primaryDropdown.getValue();
+    boolean isTriangle = "Triangle".equals(selectedCategory);
+    boolean isCircle = "Circle".equals(selectedCategory);
+
+    if (isTriangle || isCircle) {
+      return new double[] {-180.0, 180.0};
+    } else {
+      return new double[] {-45.0, 45.0};
+    }
+  }
+
+  /**
+   * Updates the angle slider range based on the currently selected shape. Triangles get -180 to
+   * +180 range, other shapes get -45 to +45 range.
+   */
+  private void updateAngleSliderRange() {
+    double[] range = getRotationRange();
+    angleSlider.setMin(range[0]);
+    angleSlider.setMax(range[1]);
+    angleSlider.setValue(0.0);
+  }
+
+  /**
+   * Updates the angle input prompt and slider range when the primary dropdown selection changes.
+   * This ensures the UI elements reflect the correct rotation range for the selected shape.
+   */
+  private void updateRotationUIForShape() {
+    updateAngleInputPrompt();
+    updateAngleSliderRange();
+
+    // Reset angle to 0 if it's outside the new range
+    double currentAngle = angleSlider.getValue();
+    double[] range = getRotationRange();
+
+    if (currentAngle < range[0] || currentAngle > range[1]) {
+      angleSlider.setValue(0.0);
+      angleInput.setText("0.0");
+    }
   }
 }
 
 // ===== OverlayState class goes HERE - AFTER VastuController ends =====
 class OverlayState {
-    final Image image;
-    final double layoutX;
-    final double layoutY;
-    final double fitWidth;
-    final double fitHeight;
-    final double rotate;
-    final double scaleX;
-    final double scaleY;
-    final double opacity;
-    
-    OverlayState(ImageView overlay) {
-        this.image = overlay.getImage();
-        this.layoutX = overlay.getLayoutX();
-        this.layoutY = overlay.getLayoutY();
-        this.fitWidth = overlay.getFitWidth();
-        this.fitHeight = overlay.getFitHeight();
-        this.rotate = overlay.getRotate();
-        this.scaleX = overlay.getScaleX();
-        this.scaleY = overlay.getScaleY();
-        this.opacity = overlay.getOpacity();
-    }
-    
-    void restore(ImageView overlay) {
-        overlay.setImage(image);
-        overlay.setLayoutX(layoutX);
-        overlay.setLayoutY(layoutY);
-        overlay.setFitWidth(fitWidth);
-        overlay.setFitHeight(fitHeight);
-        overlay.setRotate(rotate);
-        overlay.setScaleX(scaleX);
-        overlay.setScaleY(scaleY);
-        overlay.setOpacity(opacity);
-    }
+  final Image image;
+  final double layoutX;
+  final double layoutY;
+  final double fitWidth;
+  final double fitHeight;
+  final double rotate;
+  final double scaleX;
+  final double scaleY;
+  final double opacity;
+
+  OverlayState(ImageView overlay) {
+    this.image = overlay.getImage();
+    this.layoutX = overlay.getLayoutX();
+    this.layoutY = overlay.getLayoutY();
+    this.fitWidth = overlay.getFitWidth();
+    this.fitHeight = overlay.getFitHeight();
+    this.rotate = overlay.getRotate();
+    this.scaleX = overlay.getScaleX();
+    this.scaleY = overlay.getScaleY();
+    this.opacity = overlay.getOpacity();
+  }
+
+  void restore(ImageView overlay) {
+    overlay.setImage(image);
+    overlay.setLayoutX(layoutX);
+    overlay.setLayoutY(layoutY);
+    overlay.setFitWidth(fitWidth);
+    overlay.setFitHeight(fitHeight);
+    overlay.setRotate(rotate);
+    overlay.setScaleX(scaleX);
+    overlay.setScaleY(scaleY);
+    overlay.setOpacity(opacity);
+  }
 }
