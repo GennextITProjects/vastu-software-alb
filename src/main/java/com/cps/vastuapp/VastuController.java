@@ -325,7 +325,7 @@ public class VastuController {
     }
   }
 
-  private void initializeSliders() {
+private void initializeSliders() {
     // Default range for non-triangle overlays
     angleSlider.setMin(-45.0);
     angleSlider.setMax(45.0);
@@ -1625,30 +1625,30 @@ private void applyRotation(ImageView imageView, double angle) {
         () -> {
             double currentAngle = angle;
             
-            // Check if this is a TRIANGLE (has triangle-specific userData)
-            String selectedCategory = primaryDropdown.getValue();
+            // Check if this is a TRIANGLE by looking for the "TRIANGLE" identifier
             Object userData = imageView.getUserData();
+            
             if (userData instanceof Object[] && ((Object[])userData).length >= 3) {
-
-                
-                // TRIANGLE: Use stored center for rotation
-                double[] data = (double[]) userData;
-                double centerX = data[0];
-                double centerY = data[1];
-                
-                // Clear existing transforms
-                imageView.getTransforms().clear();
-                
-                // Create and add rotation transform
-                Rotate rotate = new Rotate(currentAngle, centerX, centerY);
-                imageView.getTransforms().add(rotate);
-                
-                System.out.println("Triangle rotated " + currentAngle + "° around (" + centerX + ", " + centerY + ")");
-            } else {
-                // NON-TRIANGLE: Simple rotation (this is what worked before)
-                // IMPORTANT: Don't clear transforms for non-triangles
-                imageView.setRotate(currentAngle);
+                Object[] data = (Object[]) userData;
+                if ("TRIANGLE".equals(data[0])) {
+                    // TRIANGLE: Use stored center for rotation
+                    double centerX = (double) data[1];
+                    double centerY = (double) data[2];
+                    
+                    // Clear existing transforms
+                    imageView.getTransforms().clear();
+                    
+                    // Create and add rotation transform with correct pivot
+                    Rotate rotate = new Rotate(currentAngle, centerX, centerY);
+                    imageView.getTransforms().add(rotate);
+                    
+                    System.out.println("Triangle rotated " + currentAngle + "° around (" + centerX + ", " + centerY + ")");
+                    return; // Exit early
+                }
             }
+            
+            // NON-TRIANGLE: Use original rotation method
+            imageView.setRotate(currentAngle);
             
             updateResizeHandles();
             drawCompass(gco, compassCanvas.getWidth(), compassCanvas.getHeight(), currentAngle, compassDirection);
@@ -1986,9 +1986,11 @@ private void applyTriangleScaling(
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
     
-    // Store triangle center in userData for rotation to use
-    overlayImageView1.setUserData(new double[]{scaledCenterX, scaledCenterY, angleSlider.getValue()});
+    // ===== STORE TRIANGLE CENTER with a type identifier =====
+    // Using Object[] with "TRIANGLE" flag to avoid confusion with other shapes
+    overlayImageView1.setUserData(new Object[]{"TRIANGLE", scaledCenterX, scaledCenterY});
     
+    System.out.println("Triangle center stored at: (" + scaledCenterX + ", " + scaledCenterY + ")");
     System.out.println("=== Triangle Scaling Complete ===");
 }
 
