@@ -325,40 +325,45 @@ public class VastuController {
     }
   }
 
-private void initializeSliders() {
+  private void initializeSliders() {
     // Default range for non-triangle overlays
     angleSlider.setMin(-45.0);
     angleSlider.setMax(45.0);
     angleSlider.setValue(0.0);
 
     // Add listener to change range based on selected category
-    primaryDropdown.valueProperty().addListener((obs, oldVal, newVal) -> {
-        if ("Triangle".equals(newVal)) {
-            // Triangle overlays need 180° rotation
-            angleSlider.setMin(-180.0);
-            angleSlider.setMax(180.0);
-            System.out.println("Triangle selected: Rotation range set to -180° to +180°");
-        } else {
-            // Other shapes use default -45° to +45°
-            angleSlider.setMin(-45.0);
-            angleSlider.setMax(45.0);
-            System.out.println(newVal + " selected: Rotation range set to -45° to +45°");
-        }
-        // Reset to 0 when changing shapes
-        angleSlider.setValue(0.0);
-    });
+    primaryDropdown
+        .valueProperty()
+        .addListener(
+            (obs, oldVal, newVal) -> {
+              if ("Triangle".equals(newVal)) {
+                // Triangle overlays need 180° rotation
+                angleSlider.setMin(-180.0);
+                angleSlider.setMax(180.0);
+                System.out.println("Triangle selected: Rotation range set to -180° to +180°");
+              } else {
+                // Other shapes use default -45° to +45°
+                angleSlider.setMin(-45.0);
+                angleSlider.setMax(45.0);
+                System.out.println(newVal + " selected: Rotation range set to -45° to +45°");
+              }
+              // Reset to 0 when changing shapes
+              angleSlider.setValue(0.0);
+            });
 
-    angleSlider.valueProperty().addListener(
-        (observable, oldValue, newValue) -> {
-            if (overlayImageView1.getImage() != null) {
+    angleSlider
+        .valueProperty()
+        .addListener(
+            (observable, oldValue, newValue) -> {
+              if (overlayImageView1.getImage() != null) {
                 saveOverlayState("Rotation");
-            }
-            angleInput.setText(String.format("%.1f", newValue.doubleValue()));
-            applyRotation(overlayImageView1, newValue.doubleValue());
-        });
+              }
+              angleInput.setText(String.format("%.1f", newValue.doubleValue()));
+              applyRotation(overlayImageView1, newValue.doubleValue());
+            });
 
     bindOpacityProperties();
-}
+  }
 
   private void bindOpacityProperties() {
     if (overlayImageView1 != null) {
@@ -1111,6 +1116,9 @@ private void initializeSliders() {
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
 
+    // ===== CLEAR any triangle userData =====
+    overlayImageView1.setUserData(null);
+
     System.out.println("Inner rect size: " + innerRectWidth + " x " + innerRectHeight);
     System.out.println("User rect size: " + userRectWidth + " x " + userRectHeight);
     System.out.println("Overlay position: (" + overlayX + ", " + overlayY + ")");
@@ -1159,6 +1167,8 @@ private void initializeSliders() {
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
+    // ===== CLEAR any triangle userData =====
+    overlayImageView1.setUserData(null);
     System.out.println("Circle Scale: " + scale);
     System.out.println("Inner radius: " + innerRadius);
     System.out.println("User rect min dim: " + userRectMinDim);
@@ -1506,6 +1516,8 @@ private void initializeSliders() {
           overlayImageView1.setFitHeight(height);
           overlayImageView1.setLayoutX(minX);
           overlayImageView1.setLayoutY(minY);
+          // ===== CLEAR any triangle userData =====
+          overlayImageView1.setUserData(null);
         }
       } else if (isCircularOverlay) {
         // Circle handling
@@ -1528,6 +1540,8 @@ private void initializeSliders() {
           StackPane.setAlignment(overlayImageView1, Pos.CENTER);
           overlayImageView1.setLayoutX(centerX - imageCenterX);
           overlayImageView1.setLayoutY(centerY - imageCenterY);
+          // ===== CLEAR any triangle userData =====
+          overlayImageView1.setUserData(null);
         }
       } else {
         // Rectangle handling
@@ -1556,6 +1570,8 @@ private void initializeSliders() {
           StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
           overlayImageView1.setLayoutX(minX);
           overlayImageView1.setLayoutY(minY);
+          // ===== CLEAR any triangle userData =====
+          overlayImageView1.setUserData(null);
         }
       }
 
@@ -1610,6 +1626,8 @@ private void initializeSliders() {
     overlayImageView1.setScaleY(1);
     overlayImageView1.setLayoutX(0); // Also reset layout
     overlayImageView1.setLayoutY(0); // Also reset layout
+    // ===== CLEAR userData when resetting =====
+    overlayImageView1.setUserData(null);
     removeResizeHandles();
   }
 
@@ -1620,40 +1638,53 @@ private void initializeSliders() {
    * @param imageView The ImageView to rotate.
    * @param angle The rotation angle in degrees.
    */
-private void applyRotation(ImageView imageView, double angle) {
+  private void applyRotation(ImageView imageView, double angle) {
     Platform.runLater(
         () -> {
-            double currentAngle = angle;
-            
-            // Check if this is a TRIANGLE by looking for the "TRIANGLE" identifier
-            Object userData = imageView.getUserData();
-            
-            if (userData instanceof Object[] && ((Object[])userData).length >= 3) {
-                Object[] data = (Object[]) userData;
-                if ("TRIANGLE".equals(data[0])) {
-                    // TRIANGLE: Use stored center for rotation
-                    double centerX = (double) data[1];
-                    double centerY = (double) data[2];
-                    
-                    // Clear existing transforms
-                    imageView.getTransforms().clear();
-                    
-                    // Create and add rotation transform with correct pivot
-                    Rotate rotate = new Rotate(currentAngle, centerX, centerY);
-                    imageView.getTransforms().add(rotate);
-                    
-                    System.out.println("Triangle rotated " + currentAngle + "° around (" + centerX + ", " + centerY + ")");
-                    return; // Exit early
-                }
+          double currentAngle = angle;
+
+          // Check if this is a TRIANGLE by looking for the "TRIANGLE" identifier
+          Object userData = imageView.getUserData();
+
+          if (userData instanceof Object[] && ((Object[]) userData).length >= 3) {
+            Object[] data = (Object[]) userData;
+            if ("TRIANGLE".equals(data[0])) {
+              // TRIANGLE: Use stored center for rotation
+              double centerX = (double) data[1];
+              double centerY = (double) data[2];
+
+              // Clear existing transforms
+              imageView.getTransforms().clear();
+
+              // Create and add rotation transform with correct pivot
+              Rotate rotate = new Rotate(currentAngle, centerX, centerY);
+              imageView.getTransforms().add(rotate);
+
+              System.out.println(
+                  "Triangle rotated "
+                      + currentAngle
+                      + "° around ("
+                      + centerX
+                      + ", "
+                      + centerY
+                      + ")");
+              return; // Exit early
             }
-            
-            // NON-TRIANGLE: Use original rotation method
-            imageView.setRotate(currentAngle);
-            
-            updateResizeHandles();
-            drawCompass(gco, compassCanvas.getWidth(), compassCanvas.getHeight(), currentAngle, compassDirection);
+          }
+
+          // NON-TRIANGLE: Clear transforms and use simple rotation
+          imageView.getTransforms().clear();
+          imageView.setRotate(currentAngle);
+
+          updateResizeHandles();
+          drawCompass(
+              gco,
+              compassCanvas.getWidth(),
+              compassCanvas.getHeight(),
+              currentAngle,
+              compassDirection);
         });
-}
+  }
 
   /**
    * Handle zooming with mouse scroll, based on the cursor position on the image.
@@ -1919,80 +1950,80 @@ private void applyRotation(ImageView imageView, double angle) {
    * Applies scaling for triangular overlays. Maps the triangle's center to the user's rectangle
    * center.
    */
-private void applyTriangleScaling(
-    Image image, double userRectWidth, double userRectHeight, double[][] triangle) {
-    
+  private void applyTriangleScaling(
+      Image image, double userRectWidth, double userRectHeight, double[][] triangle) {
+
     System.out.println("=== Applying Triangle Scaling (Center Alignment) ===");
 
     // Triangle center coordinates (hardcoded from your data)
     double centerXPercent = 50.03; // (6399/12790)*100
     double centerYPercent = 61.76; // (7500/12143)*100
-    
+
     // Calculate center in original image pixels
     double centerX = (centerXPercent / 100.0) * image.getWidth();
     double centerY = (centerYPercent / 100.0) * image.getHeight();
-    
+
     // Find triangle bounds to calculate size
     double[] top = triangle[0];
     double[] bottomLeft = triangle[1];
     double[] bottomRight = triangle[2];
-    
+
     // Calculate triangle bounds
     double minTriangleX = Math.min(top[0], Math.min(bottomLeft[0], bottomRight[0]));
     double maxTriangleX = Math.max(top[0], Math.max(bottomLeft[0], bottomRight[0]));
     double minTriangleY = Math.min(top[1], Math.min(bottomLeft[1], bottomRight[1]));
     double maxTriangleY = Math.max(top[1], Math.max(bottomLeft[1], bottomRight[1]));
-    
+
     // Convert to actual pixels
     double triangleWidth = ((maxTriangleX - minTriangleX) / 100.0) * image.getWidth();
     double triangleHeight = ((maxTriangleY - minTriangleY) / 100.0) * image.getHeight();
-    
+
     System.out.println("Triangle center: (" + centerX + ", " + centerY + ")");
     System.out.println("Triangle size: " + triangleWidth + " x " + triangleHeight);
     System.out.println("User rect size: " + userRectWidth + " x " + userRectHeight);
-    
+
     // Calculate scale to fit triangle in user's rectangle (maintain proportions)
     double scaleX = userRectWidth / triangleWidth;
     double scaleY = userRectHeight / triangleHeight;
-    
+
     // Use MIN scale to ensure triangle fits completely inside rectangle
     double scale = Math.min(scaleX, scaleY);
-    
+
     System.out.println("Using scale: " + scale);
-    
+
     // Clear any existing transforms
     overlayImageView1.getTransforms().clear();
-    
+
     // Apply scaling to entire image
     overlayImageView1.setPreserveRatio(true); // Keep triangle proportions
     overlayImageView1.setFitWidth(image.getWidth() * scale);
     overlayImageView1.setFitHeight(image.getHeight() * scale);
-    
+
     // Calculate scaled center position
     double scaledCenterX = centerX * scale;
     double scaledCenterY = centerY * scale;
-    
+
     // Calculate user rectangle center
     double userCenterX = minX + (userRectWidth / 2.0);
     double userCenterY = minY + (userRectHeight / 2.0);
-    
+
     // Position so triangle CENTER aligns with user rectangle CENTER
     double overlayX = userCenterX - scaledCenterX;
     double overlayY = userCenterY - scaledCenterY;
-    
+
     System.out.println("Overlay position: (" + overlayX + ", " + overlayY + ")");
-    
+
     StackPane.setAlignment(overlayImageView1, Pos.TOP_LEFT);
     overlayImageView1.setLayoutX(overlayX);
     overlayImageView1.setLayoutY(overlayY);
-    
+
     // ===== STORE TRIANGLE CENTER with a type identifier =====
     // Using Object[] with "TRIANGLE" flag to avoid confusion with other shapes
-    overlayImageView1.setUserData(new Object[]{"TRIANGLE", scaledCenterX, scaledCenterY});
-    
+    overlayImageView1.setUserData(new Object[] {"TRIANGLE", scaledCenterX, scaledCenterY});
+
     System.out.println("Triangle center stored at: (" + scaledCenterX + ", " + scaledCenterY + ")");
     System.out.println("=== Triangle Scaling Complete ===");
-}
+  }
 
   private void setupData() {
 
