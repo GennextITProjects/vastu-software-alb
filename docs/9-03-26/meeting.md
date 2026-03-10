@@ -6,6 +6,11 @@
         - Good Enteries and Bad Zone
         - Zones
 
+    - Currently:
+        - Bad zones
+        - Good enteries
+        - Marma points
+
 
 
 

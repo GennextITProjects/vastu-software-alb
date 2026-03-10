@@ -1906,6 +1906,9 @@ public class VastuController {
     overlayInnerCircles.put("MARMA_POINTS", new double[] {50.01, 49.80, 23.55});
     overlayInnerCircles.put("BAD_ZONES", new double[] {50.01, 49.80, 23.55});
     overlayInnerCircles.put("GOOD_ENTRIES", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("GOOD_ENTRIES_AND_BAD_ZONES", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("MANDUKA", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("ZONES", new double[] {50.01, 49.80, 23.55});
   }
 
   /**
@@ -2043,7 +2046,7 @@ public class VastuController {
     // Example shapSelection
     Map<String, ObservableList<String>> circleData = new HashMap<>();
     circleData.put(
-        "ALL", FXCollections.observableArrayList("MARMA_POINTS", "BAD_ZONES", "GOOD_ENTRIES"));
+        "ALL", FXCollections.observableArrayList("MARMA_POINTS", "BAD_ZONES", "GOOD_ENTRIES", "GOOD_ENTRIES_AND_BAD_ZONES", "MANDUKA", "ZONES"));
 
     Map<String, ObservableList<String>> squareData = new HashMap<>();
     squareData.put(
