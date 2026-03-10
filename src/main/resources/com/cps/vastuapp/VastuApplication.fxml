@@ -39,6 +39,12 @@
             <Menu style="-fx-text-fill: white;" text="Edit">
                 <MenuItem onAction="#promptCropImageFileMenu" text="Crop" />
             </Menu>
+            <Menu style="-fx-text-fill: white;" text="Vastu Tips">
+                <MenuItem onAction="#handleVastuTipsDevta" text="Devta" />
+                <MenuItem onAction="#handleVastuTipsElement" text="Element" />
+                <MenuItem onAction="#handleVastuTipsEntrance" text="Entrance" />
+                <MenuItem onAction="#handleVastuTipsZone" text="Zone" />
+            </Menu>
             <Menu style="-fx-text-fill: white;" text="Help">
                 <MenuItem onAction="#showAbout" text="About" />
             </Menu>
