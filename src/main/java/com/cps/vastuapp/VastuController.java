@@ -1906,6 +1906,9 @@ public class VastuController {
     overlayInnerCircles.put("MARMA_POINTS", new double[] {50.01, 49.80, 23.55});
     overlayInnerCircles.put("BAD_ZONES", new double[] {50.01, 49.80, 23.55});
     overlayInnerCircles.put("GOOD_ENTRIES", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("GOOD_ENTRIES_AND_BAD_ZONES", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("MANDUKA", new double[] {50.01, 49.80, 23.55});
+    overlayInnerCircles.put("ZONES", new double[] {50.01, 49.80, 23.55});
   }
 
   /**
@@ -2043,7 +2046,7 @@ public class VastuController {
     // Example shapSelection
     Map<String, ObservableList<String>> circleData = new HashMap<>();
     circleData.put(
-        "ALL", FXCollections.observableArrayList("MARMA_POINTS", "BAD_ZONES", "GOOD_ENTRIES"));
+        "ALL", FXCollections.observableArrayList("MARMA_POINTS", "BAD_ZONES", "GOOD_ENTRIES", "GOOD_ENTRIES_AND_BAD_ZONES", "MANDUKA", "ZONES"));
 
     Map<String, ObservableList<String>> squareData = new HashMap<>();
     squareData.put(
@@ -2434,6 +2437,110 @@ public class VastuController {
         Thank you for using MasterVastu!\
         """);
     aboutAlert.showAndWait();
+  }
+
+  // ===== VASTU TIPS MENU HANDLERS =====
+
+  @FXML
+  private void handleVastuTipsDevta() {
+    copyExcelFileToUserSystem("Devta.xlsx", "Devta Vastu Tips");
+  }
+
+  @FXML
+  private void handleVastuTipsElement() {
+    copyExcelFileToUserSystem("Element.xlsx", "Element Vastu Tips");
+  }
+
+  @FXML
+  private void handleVastuTipsEntrance() {
+    copyExcelFileToUserSystem("Entrance.xlsx", "Entrance Vastu Tips");
+  }
+
+  @FXML
+  private void handleVastuTipsZone() {
+    copyExcelFileToUserSystem("Zone.xlsx", "Zone Vastu Tips");
+  }
+
+  /**
+   * Copies an Excel file from the vastu-tips directory to user's chosen location.
+   * 
+   * @param fileName The name of the Excel file to copy
+   * @param title The title for the file chooser dialog
+   */
+  private void copyExcelFileToUserSystem(String fileName, String title) {
+    try {
+      // Get the source file from resources
+      InputStream sourceStream = getClass().getResourceAsStream("/Directory/vastu-tips/" + fileName);
+      
+      if (sourceStream == null) {
+        showAlert(AlertType.ERROR, "File Not Found", 
+            "The file '" + fileName + "' was not found in the application resources.");
+        return;
+      }
+
+      // Set up file chooser for destination
+      FileChooser fileChooser = new FileChooser();
+      fileChooser.setTitle("Save " + title);
+      fileChooser.setInitialFileName(fileName);
+      
+      // Set file extension filter
+      fileChooser.getExtensionFilters().addAll(
+          new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"),
+          new FileChooser.ExtensionFilter("All Files", "*.*")
+      );
+
+      // Show save dialog
+      File destinationFile = fileChooser.showSaveDialog(imageContainer.getScene().getWindow());
+
+      if (destinationFile != null) {
+        // Copy the file
+        java.nio.file.Files.copy(
+            sourceStream, 
+            destinationFile.toPath(), 
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        );
+
+        // Show success message
+        showAlert(AlertType.INFORMATION, "File Saved Successfully", 
+            title + " has been saved to:\n" + destinationFile.getAbsolutePath());
+      }
+
+      sourceStream.close();
+    } catch (IOException e) {
+      logger.log(Level.SEVERE, "Failed to copy Excel file: " + fileName, e);
+      showAlert(AlertType.ERROR, "Copy Failed", 
+          "Failed to save the file: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Shows an informational dialog for Vastu tips.
+   * 
+   * @param optionName The name of the Vastu tip option
+   * @param title The dialog title
+   * @param content The content to display
+   */
+  private void showVastuTipsDialog(String optionName, String title, String content) {
+    Alert tipsAlert = new Alert(AlertType.INFORMATION);
+    tipsAlert.setTitle(title);
+    tipsAlert.setHeaderText(optionName + " Vastu Guidance");
+    
+    // Create a scrollable text area for the content
+    TextArea textArea = new TextArea(content);
+    textArea.setEditable(false);
+    textArea.setWrapText(true);
+    textArea.setMaxWidth(Double.MAX_VALUE);
+    textArea.setMaxHeight(Double.MAX_VALUE);
+    textArea.setPrefRowCount(10);
+    
+    // Create a scroll pane to contain the text area
+    ScrollPane scrollPane = new ScrollPane(textArea);
+    scrollPane.setFitToWidth(true);
+    scrollPane.setPrefSize(400, 250);
+    
+    tipsAlert.getDialogPane().setContent(scrollPane);
+    AppUtils.setAlertIcon(tipsAlert);
+    tipsAlert.showAndWait();
   }
 
   // Load Image From File (updated to handle different file types)
