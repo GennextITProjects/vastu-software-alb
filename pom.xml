@@ -12,7 +12,40 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.0</junit.version>
         <javafx.version>17.0.13</javafx.version>
+        <os.detected.classifier></os.detected.classifier>
     </properties>
+
+    <!-- OS Detection -->
+    <profiles>
+        <profile>
+            <id>windows</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <os.detected.classifier>windows</os.detected.classifier>
+                <installer.type>exe</installer.type>
+                <icon.path>src/main/resources/icons/app_icon.ico</icon.path>
+                <javafx.dll.path>C:\Program Files\Java\javafx-sdk-17.0.13\bin</javafx.dll.path>
+            </properties>
+        </profile>
+        <profile>
+            <id>mac</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <os.detected.classifier>mac</os.detected.classifier>
+                <installer.type>dmg</installer.type>
+                <icon.path>src/main/resources/icons/app_icon.icns</icon.path>
+                <javafx.dll.path>/usr/local/Cellar/openjfx/17.0.13/libexec/lib</javafx.dll.path>
+            </properties>
+        </profile>
+    </profiles>
 
     <dependencies>
         <dependency>
@@ -74,7 +107,7 @@
                 </configuration>
             </plugin>
 
-            <!-- JavaFX Run Plugin (only for mvn javafx:run) -->
+            <!-- JavaFX Run Plugin -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -115,13 +148,12 @@
                 </executions>
             </plugin>
 
-            <!-- Antrun: copy JAR to pkg-input, then copy JavaFX DLLs after jpackage -->
+            <!-- Copy JAR for jpackage -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>
-                    <!-- Runs at package phase: copies fat JAR to clean folder -->
                     <execution>
                         <id>copy-jar-for-jpackage</id>
                         <phase>package</phase>
@@ -136,25 +168,34 @@
                             </target>
                         </configuration>
                     </execution>
-                    <!-- Runs at verify phase: copies JavaFX DLLs into app-image after jpackage -->
+                    
+                    <!-- OS-specific runtime file copying -->
                     <execution>
-                        <id>copy-javafx-dlls</id>
-                        <phase>insall</phase>
+                        <id>copy-runtime-files</id>
+                        <phase>verify</phase>
                         <goals>
                             <goal>run</goal>
                         </goals>
                         <configuration>
                             <target>
-                                <copy todir="${project.build.directory}/installer/MasterVastu/runtime/bin" overwrite="true">
-                                    <fileset dir="D:\Programs\javafx-sdk-17.0.18\bin" includes="*.dll"/>
-                                </copy>
+                                <!-- Windows: Copy DLLs -->
+                                <condition property="isWindows">
+                                    <os family="windows"/>
+                                </condition>
+                                <antcall target="copy-windows-files" />
+                                
+                                <!-- macOS: Copy dylibs (if needed) -->
+                                <condition property="isMac">
+                                    <os family="mac"/>
+                                </condition>
+                                <antcall target="copy-mac-files" />
                             </target>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
-            <!-- jpackage: creates app-image using Liberica jpackage via PATH -->
+            <!-- jpackage plugin -->
             <plugin>
                 <groupId>org.panteleyev</groupId>
                 <artifactId>jpackage-maven-plugin</artifactId>
@@ -174,8 +215,18 @@
                             <mainJar>${project.build.finalName}-jar-with-dependencies.jar</mainJar>
                             <mainClass>com.cps.vastuapp.VastuApplication</mainClass>
                             <destination>${project.build.directory}/installer</destination>
-                            <type>APP_IMAGE</type>
-                            <icon>src/main/resources/icons/app_icon.ico</icon>
+                            <type>${installer.type}</type>
+                            <icon>${icon.path}</icon>
+                            
+                            <!-- macOS specific options -->
+                            <macPackageIdentifier>com.cps.mastervastu</macPackageIdentifier>
+                            <macPackageName>MasterVastu</macPackageName>
+                            <macSign>false</macSign>
+                            
+                            <!-- Windows specific options -->
+                            <winMenu>true</winMenu>
+                            <winShortcut>true</winShortcut>
+                            <winDirChooser>true</winDirChooser>
                         </configuration>
                     </execution>
                 </executions>
@@ -183,4 +234,53 @@
 
         </plugins>
     </build>
+
+    <!-- Ant targets for OS-specific file copying -->
+    <profiles>
+        <profile>
+            <id>windows-copy</id>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-antrun-plugin</artifactId>
+                            <version>3.1.0</version>
+                            <executions>
+                                <execution>
+                                    <id>copy-windows-files</id>
+                                    <phase>none</phase>
+                                    <configuration>
+                                        <target name="copy-windows-files">
+                                            <copy todir="${project.build.directory}/installer/MasterVastu/runtime/bin" overwrite="true">
+                                                <fileset dir="${javafx.dll.path}" includes="*.dll"/>
+                                            </copy>
+                                        </target>
+                                    </configuration>
+                                    <goals>
+                                        <goal>run</goal>
+                                    </goals>
+                                </execution>
+                                <execution>
+                                    <id>copy-mac-files</id>
+                                    <phase>none</phase>
+                                    <configuration>
+                                        <target name="copy-mac-files">
+                                            <copy todir="${project.build.directory}/installer/MasterVastu.app/Contents/runtime/lib" overwrite="true">
+                                                <fileset dir="${javafx.dll.path}" includes="*.dylib"/>
+                                            </copy>
+                                        </target>
+                                    </configuration>
+                                    <goals>
+                                        <goal>run</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
+        </profile>
+    </profiles>
+
 </project>

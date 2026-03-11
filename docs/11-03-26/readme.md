@@ -1,0 +1,5 @@
+- This Java FX project is running fine
+- Building an exe for windows
+- Now we need a build image for MacOS, 
+- An dmg file
+- https://chat.deepseek.com/share/t42p5gbl9h0477w95q
